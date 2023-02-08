@@ -8,7 +8,10 @@ use ethers_core::{
 use ethers_providers::{Http, Middleware, Provider};
 use eyre::Result;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::{
+	collections::{HashMap, VecDeque},
+	convert::TryFrom,
+};
 use tokio::runtime::Runtime;
 
 struct Client {
@@ -116,6 +119,77 @@ fn parse_frames(tx_data: &[u8]) -> Vec<Frame> {
 		if tx_data.is_empty() {
 			return out;
 		}
+	}
+}
+
+#[derive(Default)]
+struct ChannelBank {
+	channels_map: HashMap<H128, Channel>,
+	channels_by_creation: VecDeque<H128>,
+	// TODO: Pruning
+}
+
+#[derive(Default)]
+struct Channel {
+	frames: HashMap<u16, Frame>,
+	// TODO: Size + handling insertion of frames
+}
+
+impl Channel {
+	pub fn load_frame(&mut self, frame: Frame) {
+		self.frames.entry(frame.number).or_insert(frame);
+	}
+
+	pub fn is_ready(&self) -> bool {
+		let max = self.frames.len() as u16;
+		for i in 0..max {
+			if !self.frames.contains_key(&i) {
+				return false;
+			}
+		}
+		return self.frames.get(&(max - 1)).unwrap().is_last;
+	}
+
+	pub fn data(&mut self) -> Option<Vec<u8>> {
+		let max = self.frames.len() as u16;
+		if !self.is_ready() {
+			return None;
+		}
+		// TODO: Check is closed
+		let mut out = Vec::new();
+		for i in 0..max {
+			let data = &mut self.frames.get_mut(&i).unwrap().data;
+			out.append(data);
+		}
+		Some(out)
+	}
+}
+
+impl ChannelBank {
+	pub fn load_frames(&mut self, frames: Vec<Frame>) {
+		for frame in frames {
+			if let std::collections::hash_map::Entry::Vacant(e) = self.channels_map.entry(frame.id) {
+				e.insert(Channel::default());
+				self.channels_by_creation.push_back(frame.id);
+			}
+			self.channels_map.get_mut(&frame.id).unwrap().load_frame(frame);
+			// TODO: prune
+		}
+	}
+
+	pub fn get_channel_data(&mut self) -> Option<Vec<u8>> {
+		let curr = self.channels_by_creation.front()?;
+		let ch = self.channels_map.get(curr).unwrap();
+
+		if ch.is_ready() {
+			let mut ch = self.channels_map.remove(curr).unwrap();
+			self.channels_by_creation.pop_front();
+
+			// TODO: Check if channel is timed out before returning
+			return ch.data();
+		}
+
+		None
 	}
 }
 
