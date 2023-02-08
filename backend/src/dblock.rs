@@ -1,19 +1,6 @@
-// use revm::db::{DatabaseCommit, DatabaseRef};
-// use revm::Database as RevmDatabase;
 use std::collections::HashMap;
 
 use crate::types::{BlockHash, BlockNumber, BlockWithReceipts, Database, DbResult};
-
-// metadata after derivation:
-// previous block hash
-// list of txs
-// gas limit
-
-// execute those transactions
-// create the post state
-
-// goes through the preimage oracle
-//
 
 /// Memory backend to store blocks and transactions.
 #[derive(Debug, Default, Clone)]
