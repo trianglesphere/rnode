@@ -1,0 +1,13 @@
+[package]
+name = "rs-node"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+ethers-core = "1.0.2"
+ethers-providers = "1.0.2"
+futures = "0.3.26"
+serde_json = "1.0.92"
+tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
