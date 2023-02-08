@@ -1,14 +1,11 @@
 [package]
-name = "rs-node"
+name = "backend"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
 ethers-core = "1.0.2"
-ethers-providers = "1.0.2"
-futures = "0.3.26"
 serde = { version = "1.0.152", features = ["derive"] }
 serde_json = "1.0.92"
-tokio = { version = "1.25.0", features = ["macros", "rt-multi-thread"] }
 eyre = "0.6.8"
-dotenv = "0.15.0"
+revm = "3.0.0"
