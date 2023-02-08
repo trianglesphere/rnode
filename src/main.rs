@@ -4,11 +4,15 @@ use dotenv::dotenv;
 use ethers_core::{
 	abi::AbiDecode,
 	types::{Address, Block, Log, Transaction, TransactionReceipt, H128, H256},
+	utils::rlp::{decode, decode_list, Decodable, DecoderError, Rlp},
 };
 use ethers_providers::{Http, Middleware, Provider};
 use eyre::Result;
 use serde::{Deserialize, Serialize};
-use std::convert::TryFrom;
+use std::{
+	collections::{HashMap, VecDeque},
+	convert::TryFrom,
+};
 use tokio::runtime::Runtime;
 
 struct Client {
@@ -119,6 +123,127 @@ fn parse_frames(tx_data: &[u8]) -> Vec<Frame> {
 			return out;
 		}
 	}
+}
+
+#[derive(Default)]
+struct ChannelBank {
+	channels_map: HashMap<H128, Channel>,
+	channels_by_creation: VecDeque<H128>,
+	// TODO: Pruning
+}
+
+#[derive(Default)]
+struct Channel {
+	frames: HashMap<u16, Frame>,
+	// TODO: Size + handling insertion of frames
+}
+
+impl Channel {
+	pub fn load_frame(&mut self, frame: Frame) {
+		if !self.frames.contains_key(&frame.number) {
+			self.frames.insert(frame.number, frame);
+		}
+	}
+
+	pub fn is_ready(&self) -> bool {
+		let max = self.frames.len() as u16;
+		for i in 0..max {
+			if !self.frames.contains_key(&i) {
+				return false;
+			}
+		}
+		return self.frames.get(&(max - 1)).unwrap().is_last;
+	}
+
+	pub fn data(&mut self) -> Option<Vec<u8>> {
+		let max = self.frames.len() as u16;
+		if !self.is_ready() {
+			return None;
+		}
+		// TODO: Check is closed
+		let mut out = Vec::new();
+		for i in 0..max {
+			let data = &mut self.frames.get_mut(&i).unwrap().data;
+			out.append(data);
+		}
+		Some(out)
+	}
+}
+
+impl ChannelBank {
+	pub fn load_frames(&mut self, frames: Vec<Frame>) {
+		for frame in frames {
+			if !self.channels_map.contains_key(&frame.id) {
+				self.channels_map.insert(frame.id, Channel::default());
+				self.channels_by_creation.push_back(frame.id);
+			}
+			self.channels_map.get_mut(&frame.id).unwrap().load_frame(frame);
+			// TODO: prune
+		}
+	}
+
+	pub fn get_channel_data(&mut self) -> Option<Vec<u8>> {
+		let curr = self.channels_by_creation.front()?;
+		let ch = self.channels_map.get(curr).unwrap();
+
+		if ch.is_ready() {
+			let mut ch = self.channels_map.remove(curr).unwrap();
+			self.channels_by_creation.pop_front();
+
+			// TODO: Check if channel is timed out before returning
+			return ch.data();
+		}
+
+		None
+	}
+}
+
+struct BatchV1 {
+	parent_hash: H256,
+	epoch_num: u64,
+	epoch_hash: H256,
+	timestamp: u64,
+	transactions: Vec<Vec<u8>>,
+}
+
+impl Decodable for BatchV1 {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+		let parent_hash: H256 = rlp.val_at(0)?;
+		let epoch_num: u64 = rlp.val_at(1)?;
+		let epoch_hash: H256 = rlp.val_at(2)?;
+		let timestamp: u64 = rlp.val_at(3)?;
+		let transactions: Vec<Vec<u8>> = rlp.list_at(4)?;
+
+		Ok(BatchV1 {
+			parent_hash,
+			epoch_num,
+			epoch_hash,
+			timestamp,
+			transactions,
+		})
+	}
+}
+
+struct Batch {
+	batch: BatchV1,
+	// TODO: Metadata here
+}
+
+impl Decodable for Batch {
+	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+		// TODO: Make this more robust
+		let first = rlp.as_raw()[0];
+		if first != 0 {
+			return Err(DecoderError::Custom("invalid version byte"));
+		}
+		let batch: BatchV1 = decode(&rlp.as_raw()[1..])?;
+		Ok(Batch { batch })
+	}
+}
+
+fn channel_bytes_to_batches(data: Vec<u8>) -> Vec<Batch> {
+	// TODO: Truncate data to 10KB
+	decode_list(&data)
 }
 
 fn frames_from_transactions(transactions: Vec<Transaction>) -> Vec<Frame> {
