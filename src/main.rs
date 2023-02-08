@@ -1,10 +1,9 @@
-use std::error::Error;
-
 use ethers_core::{
 	abi::AbiDecode,
 	types::{Block, Transaction, TransactionReceipt, H256},
 };
 use ethers_providers::{Http, Middleware, Provider};
+use eyre::Result;
 use serde::{Deserialize, Serialize};
 use std::convert::TryFrom;
 use tokio::runtime::Runtime;
@@ -21,29 +20,23 @@ struct BlockWithReceipts {
 }
 
 impl Client {
-	pub fn new(url: &str) -> Result<Self, Box<dyn Error>> {
+	pub fn new(url: &str) -> Result<Self> {
 		let provider = Provider::<Http>::try_from(url)?;
 		let rt = tokio::runtime::Builder::new_current_thread().enable_all().build()?;
 
 		Ok(Client { rt, provider })
 	}
 
-	fn get_transaction_receipt(&self, transaction_hash: H256) -> Result<TransactionReceipt, Box<dyn Error>> {
+	fn get_transaction_receipt(&self, transaction_hash: H256) -> Result<TransactionReceipt> {
 		let receipt = self.rt.block_on(self.provider.get_transaction_receipt(transaction_hash))?;
 
-		match receipt {
-			Some(receipt) => Ok(receipt),
-			None => Err("did not find the receipt".into()),
-		}
+		receipt.ok_or(eyre::eyre!("did not find the receipt"))
 	}
 
-	pub fn get_block_with_receipts(&self, hash: H256) -> Result<BlockWithReceipts, Box<dyn Error>> {
-		let block = self.rt.block_on(self.provider.get_block_with_txs(hash))?;
-		let block = if let Some(b) = block {
-			b
-		} else {
-			return Err("did not find the block".into());
-		};
+	pub fn get_block_with_receipts(&self, hash: H256) -> Result<BlockWithReceipts> {
+		let block =
+			self.rt.block_on(self.provider.get_block_with_txs(hash))?
+				.ok_or(eyre::eyre!("did not find the block"))?;
 
 		let mut receipts = Vec::new();
 
@@ -60,7 +53,7 @@ impl Client {
 	// }
 }
 
-fn main() -> Result<(), Box<dyn Error>> {
+fn main() -> Result<()> {
 	let provider = "";
 	let provider = Client::new(provider)?;
 
