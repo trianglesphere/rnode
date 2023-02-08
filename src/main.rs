@@ -1,7 +1,9 @@
+#![allow(dead_code)]
+
 use dotenv::dotenv;
 use ethers_core::{
 	abi::AbiDecode,
-	types::{Block, Transaction, TransactionReceipt, H256},
+	types::{Address, Block, Log, Transaction, TransactionReceipt, H128, H256},
 };
 use ethers_providers::{Http, Middleware, Provider};
 use eyre::Result;
@@ -52,6 +54,30 @@ impl Client {
 	// pub fn get_head_block(&self) -> Result<Block<TxHash>, Box<dyn Error>> {
 	// 	self.provider.get_block(block_hash_or_number)
 	// }
+}
+
+// ConfigUpdateEventABI      = "ConfigUpdate(uint256,uint8,bytes)"
+// ConfigUpdateEventABIHash  = crypto.Keccak256Hash([]byte(ConfigUpdateEventABI))
+// ConfigUpdateEventVersion0 = common.Hash{}
+
+struct SystemConfig {
+	batcher_addr: Address,
+	overhead: H256,
+	scalar: H256,
+	gas_limit: u64,
+}
+
+fn system_config_from_receipts(receipts: Vec<TransactionReceipt>, prev: SystemConfig) -> SystemConfig {
+	let l1_system_config_addr = Address::decode_hex("").unwrap();
+	let config_update_abi = H256::decode_hex("1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be").unwrap();
+	let _logs: Vec<&Log> = receipts
+		.iter()
+		.filter(|r| r.status == Some(1.into()))
+		.flat_map(|r| r.logs.iter())
+		.filter(|l| l.address == l1_system_config_addr)
+		.filter(|l| l.topics.len() > 1 && l.topics[0] == config_update_abi)
+		.collect();
+	return prev;
 }
 
 fn main() -> Result<()> {
