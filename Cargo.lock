@@ -180,43 +180,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "cli"
-version = "0.1.0"
-dependencies = [
- "client",
- "dotenv",
- "ethers-core",
- "ethers-providers",
- "eyre",
- "serde",
- "serde_json",
-]
-
-[[package]]
-name = "client"
-version = "0.1.0"
-dependencies = [
- "common",
- "dotenv",
- "ethers-core",
- "ethers-providers",
- "eyre",
- "futures",
- "serde",
- "serde_json",
- "tokio",
-]
-
-[[package]]
-name = "common"
-version = "0.1.0"
-dependencies = [
- "ethers-core",
- "serde",
- "serde_json",
-]
-
-[[package]]
 name = "const-oid"
 version = "0.9.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -273,20 +236,6 @@ checksum = "f1a467a65c5e759bce6e65eaf91cc29f466cdc57cb65777bd646872a8a1fd4de"
 dependencies = [
  "const-oid",
  "zeroize",
-]
-
-[[package]]
-name = "derivation"
-version = "0.1.0"
-dependencies = [
- "dotenv",
- "ethers-core",
- "ethers-providers",
- "eyre",
- "futures",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -480,10 +429,6 @@ dependencies = [
  "web-sys",
  "ws_stream_wasm",
 ]
-
-[[package]]
-name = "execution"
-version = "0.1.0"
 
 [[package]]
 name = "eyre"
@@ -1527,15 +1472,18 @@ dependencies = [
 ]
 
 [[package]]
-name = "rsnode"
+name = "rs-node"
 version = "0.1.0"
 dependencies = [
  "backend",
- "cli",
- "client",
- "common",
- "derivation",
- "execution",
+ "dotenv",
+ "ethers-core",
+ "ethers-providers",
+ "eyre",
+ "futures",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
