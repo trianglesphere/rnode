@@ -29,3 +29,4 @@ reth-rlp = { git = "https://github.com/paradigmxyz/reth", features = [
 ] }
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", features = [] }
 flate2 = "1.0.25"
+revm = { git = "https://github.com/refcell/op-revm" }
