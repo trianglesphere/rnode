@@ -2,12 +2,16 @@
 
 use dotenv::dotenv;
 use ethers_core::{
-	abi::AbiDecode,
 	types::{Address, Log, Transaction, TransactionReceipt, H128, H256},
-	utils::rlp::{decode, decode_list, Decodable, DecoderError, Rlp},
+	utils::rlp::{decode, Decodable, DecoderError, Rlp},
 };
 use eyre::Result;
-use std::collections::{HashMap, VecDeque};
+use flate2::read::ZlibDecoder;
+use std::io::Read;
+use std::{
+	collections::{HashMap, VecDeque},
+	str::FromStr,
+};
 
 /// The client module
 pub mod client;
@@ -29,8 +33,8 @@ struct SystemConfig {
 }
 
 fn system_config_from_receipts(receipts: Vec<TransactionReceipt>, prev: SystemConfig) -> SystemConfig {
-	let l1_system_config_addr = Address::decode_hex("").unwrap();
-	let config_update_abi = H256::decode_hex("1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be").unwrap();
+	let l1_system_config_addr = Address::from_str("").unwrap();
+	let config_update_abi = H256::from_str("1d2b0bda21d56b8bd12d4f94ebacffdfb35f5e226f84b461103bb8beab6353be").unwrap();
 	let _logs: Vec<&Log> = receipts
 		.iter()
 		.filter(|r| r.status == Some(1.into()))
@@ -41,6 +45,7 @@ fn system_config_from_receipts(receipts: Vec<TransactionReceipt>, prev: SystemCo
 	prev
 }
 
+#[derive(Debug)]
 struct Frame {
 	id: H128,
 	number: u16,
@@ -61,6 +66,7 @@ fn parse_frames(tx_data: &[u8]) -> Vec<Frame> {
 		let len = u32::from_be_bytes(tx_data[18..22].try_into().unwrap());
 		let ulen = len as usize;
 		let data = tx_data[22..22 + ulen].to_vec();
+		println!("{id} {number} {len} {}", data.len());
 		let is_last = tx_data[22 + ulen];
 		let is_last = if is_last == 0 {
 			false
@@ -151,6 +157,7 @@ impl ChannelBank {
 	}
 }
 
+#[derive(Debug)]
 struct BatchV1 {
 	parent_hash: H256,
 	epoch_num: u64,
@@ -165,7 +172,9 @@ impl Decodable for BatchV1 {
 		let epoch_num: u64 = rlp.val_at(1)?;
 		let epoch_hash: H256 = rlp.val_at(2)?;
 		let timestamp: u64 = rlp.val_at(3)?;
+		println!("decode batchv1 a");
 		let transactions: Vec<Vec<u8>> = rlp.list_at(4)?;
+		println!("decode batchv1 b");
 
 		Ok(BatchV1 {
 			parent_hash,
@@ -177,6 +186,7 @@ impl Decodable for BatchV1 {
 	}
 }
 
+#[derive(Debug)]
 struct Batch {
 	batch: BatchV1,
 	// TODO: Metadata here
@@ -184,6 +194,7 @@ struct Batch {
 
 impl Decodable for Batch {
 	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
+		println!("decoding");
 		// TODO: Make this more robust
 		let first = rlp.as_raw()[0];
 		if first != 0 {
@@ -195,12 +206,20 @@ impl Decodable for Batch {
 }
 
 fn channel_bytes_to_batches(data: Vec<u8>) -> Vec<Batch> {
-	// TODO: Truncate data to 10KB
-	decode_list(&data)
+	let mut decomp = ZlibDecoder::new(&data[..]);
+	let mut buffer = Vec::new();
+	// TODO: Handle this error
+	let res = decomp.read_to_end(&mut buffer);
+	// println!("{res:?}");
+	// println!("{}", HexSlice::new(&buffer));
+	// TODO: Truncate data to 10KB (post compression_)
+	let b = decode(&buffer).unwrap();
+
+	vec![b]
 }
 
 fn frames_from_transactions(transactions: Vec<Transaction>) -> Vec<Frame> {
-	let batcher_address = Address::decode_hex("").unwrap();
+	let batcher_address = Address::from_str("0x7431310e026B69BFC676C0013E12A1A11411EEc9").unwrap();
 
 	transactions
 		.iter()
@@ -216,10 +235,23 @@ fn main() -> Result<()> {
 	let provider = std::env::var("RPC")?;
 	let mut provider = Client::new(&provider)?;
 
-	let hash = H256::decode_hex("0xee9dd94ebc06b50d5d5c0f72299a3cc56737e459ce41ddb44f0411870f86b1a3")?;
+	let hash = H256::from_str("0x20ffc57ae0c607d4b612662251738b01c44f8a9a42a1da89a881a56a5fad426e")?;
 
 	let block = provider.get_block_with_receipts(hash)?;
-	println!("Got block: {}", serde_json::to_string_pretty(&block)?);
+	// println!("Got block: {}", serde_json::to_string_pretty(&block)?);
+
+	let frames = frames_from_transactions(block.block.transactions);
+	let mut cb = ChannelBank::default();
+	cb.load_frames(frames);
+	let channel_data = cb.get_channel_data();
+
+	if let Some(d) = channel_data {
+		println!("{}", d.len());
+		let batches = channel_bytes_to_batches(d);
+		println!("Got batches: {:#?}", batches);
+	} else {
+		println!("Invalid batch")
+	}
 
 	Ok(())
 }
