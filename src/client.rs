@@ -4,7 +4,7 @@ use eyre::Result;
 use std::{collections::HashMap, convert::TryFrom};
 use tokio::runtime::Runtime;
 
-use crate::types::*;
+use crate::types::{self, *};
 
 /// Client wraps a web3 provider to provide L1 pre-image oracle support.
 #[derive(Debug)]
@@ -36,7 +36,8 @@ impl Client {
 	/// Gets a block header by block hash
 	pub fn get_header(&self, hash: H256) -> Result<Header> {
 		let block = self.get_block_with_txs(hash)?;
-		Ok(Header::from(block))
+		let header = types::header_from_block(block)?;
+		Ok(header)
 	}
 
 	/// Gets a block with transactions
