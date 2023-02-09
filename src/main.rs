@@ -209,17 +209,32 @@ fn channel_bytes_to_batches(data: Vec<u8>) -> Vec<Batch> {
 	// TODO: Handle this error
 	// Decompress the passed data with zlib
 	decomp.read_to_end(&mut buffer).unwrap();
+	let mut buf: &[u8] = &buffer;
 
 	// TODO: Truncate data to 10KB (post compression)
 	// The data we received is an RLP encoded string. Before decoding the batch itself,
 	// we need to decode the string to get the actual batch data.
-	let decoded_batch = decode::<Vec<u8>>(&buffer).unwrap();
-	// Decode the batch itself.
-	let b: Batch = decode(&decoded_batch).unwrap();
+	let mut decoded_batches: Vec<Vec<u8>> = Vec::new();
+	loop {
+		let rlp = Rlp::new(buf);
+		let size = rlp.size();
 
-	dbg!(&b);
+		match rlp.as_val() {
+			Ok(b) => {
+				decoded_batches.push(b);
+				buf = &buf[size..];
+			}
+			Err(_) => break,
+		}
+	}
+	// dbg!(decoded_batches);
 
-	vec![b]
+	decoded_batches
+		.iter()
+		.map(|b| decode(b))
+		.filter(|r| r.is_ok())
+		.map(|b| b.unwrap())
+		.collect()
 }
 
 fn frames_from_transactions(transactions: Vec<Transaction>) -> Vec<Frame> {
