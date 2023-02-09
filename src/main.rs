@@ -21,6 +21,10 @@ pub use client::*;
 pub mod types;
 pub use types::*;
 
+// MPT utils
+pub mod mpt;
+pub use mpt::*;
+
 // ConfigUpdateEventABI      = "ConfigUpdate(uint256,uint8,bytes)"
 // ConfigUpdateEventABIHash  = crypto.Keccak256Hash([]byte(ConfigUpdateEventABI))
 // ConfigUpdateEventVersion0 = common.Hash{}
