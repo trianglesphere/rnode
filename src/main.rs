@@ -21,6 +21,10 @@ pub use client::*;
 pub mod types;
 pub use types::*;
 
+// MPT utils
+pub mod mpt;
+pub use mpt::*;
+
 // Module Data
 pub mod data;
 pub use data::*;
