@@ -210,7 +210,7 @@ fn main() -> Result<()> {
 	dotenv().ok();
 
 	let provider = std::env::var("RPC")?;
-	let provider = Client::new(&provider)?;
+	let mut provider = Client::new(&provider)?;
 
 	let hash = H256::decode_hex("0xee9dd94ebc06b50d5d5c0f72299a3cc56737e459ce41ddb44f0411870f86b1a3")?;
 
