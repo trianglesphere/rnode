@@ -28,3 +28,4 @@ reth-rlp = { git = "https://github.com/paradigmxyz/reth", features = [
     "smol_str"
 ] }
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", features = [] }
+flate2 = "1.0.25"
