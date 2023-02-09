@@ -41,23 +41,6 @@ impl Client {
 		})
 	}
 
-	/// Gets a transaction receipt by hash
-	pub fn get_transaction_receipt(&self, transaction_hash: H256) -> Result<TransactionReceipt> {
-		let receipt = self.rt.block_on(self.provider.get_transaction_receipt(transaction_hash))?;
-
-		receipt.ok_or(eyre::eyre!("did not find the receipt"))
-	}
-
-	/// Gets a block with its receipts
-	pub fn get_block_with_receipts(&mut self, hash: H256) -> Result<BlockWithReceipts> {
-		let block =
-			self.rt.block_on(self.provider.get_block_with_txs(hash))?
-				.ok_or(eyre::eyre!("did not find the block"))?;
-		self.transactions.insert(block.transactions_root, block.transactions.clone());
-		let receipts = self.get_receipts_by_root(block.transactions_root)?;
-		Ok(BlockWithReceipts { block, receipts })
-	}
-
 	/// Gets a block header by block hash
 	pub fn get_header(&self, hash: H256) -> Result<Block<Transaction>> {
 		let block =
@@ -66,10 +49,27 @@ impl Client {
 		Ok(block)
 	}
 
-	/// Get receipts by the transaction root
-	pub fn get_receipts_by_root(&self, root: H256) -> Result<Vec<TransactionReceipt>> {
-		let transactions = self.get_transactions_by_root(root)?;
+	/// Gets a block with its receipts
+	pub fn get_block_with_receipts(&mut self, hash: H256) -> Result<BlockWithReceipts> {
+		let block =
+			self.rt.block_on(self.provider.get_block_with_txs(hash))?
+				.ok_or(eyre::eyre!("did not find the block"))?;
+		self.transactions.insert(block.transactions_root, block.transactions.clone());
+		let receipts = self.get_receipts_by_transactions(&block.transactions)?;
+		self.receipts.insert(block.receipts_root, receipts.clone());
+		Ok(BlockWithReceipts { block, receipts })
+	}
 
+	/// Get receipts by the recipt root
+	pub fn get_receipts_by_root(&self, root: H256) -> Result<Vec<TransactionReceipt>> {
+		self.receipts
+			.get(&root)
+			.ok_or(eyre::eyre!("missing receipts for given root in internal store"))
+			.cloned()
+	}
+
+	/// Get transaction receipts for a list of transactions
+	pub fn get_receipts_by_transactions(&self, transactions: &[Transaction]) -> Result<Vec<TransactionReceipt>> {
 		let mut receipts = Vec::new();
 		for tx in transactions.iter() {
 			let receipt = self.get_transaction_receipt(tx.hash)?;
@@ -77,6 +77,12 @@ impl Client {
 		}
 
 		Ok(receipts)
+	}
+
+	/// Gets a transaction receipt by transaction hash
+	fn get_transaction_receipt(&self, transaction_hash: H256) -> Result<TransactionReceipt> {
+		let receipt = self.rt.block_on(self.provider.get_transaction_receipt(transaction_hash))?;
+		receipt.ok_or(eyre::eyre!("did not find the receipt"))
 	}
 
 	/// Get transactions by the transaction root
