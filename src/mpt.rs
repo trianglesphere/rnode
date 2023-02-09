@@ -65,7 +65,11 @@ fn tx_to_reth_tx(tx: Transaction) -> TransactionSigned {
 	let nonce = tx.nonce.as_u64();
 	let gas_price = tx.gas_price.unwrap_or_default().as_u128();
 	let gas_limit = tx.gas.as_u64();
-	let to = reth_primitives::H160::from(tx.to.unwrap_or_default().as_fixed_bytes());
+	let to = if let Some(to) = tx.to {
+		reth_primitives::TransactionKind::Call(reth_primitives::H160::from(to.as_fixed_bytes()))
+	} else {
+		reth_primitives::TransactionKind::Create
+	};
 	let value = tx.value.as_u128();
 	let input = reth_primitives::Bytes(tx.input.clone().0);
 	let access_list = reth_primitives::AccessList(
@@ -85,7 +89,6 @@ fn tx_to_reth_tx(tx: Transaction) -> TransactionSigned {
 			.collect::<Vec<reth_primitives::AccessListItem>>(),
 	);
 
-	// TODO: For the `to` field, we need to check if it's a contract creation or a call
 	let inner_tx: reth_primitives::Transaction = match tx.transaction_type {
 		Some(tx_type) => match tx_type.as_u64() {
 			1 => reth_primitives::Transaction::Eip2930(reth_primitives::TxEip2930 {
@@ -93,7 +96,7 @@ fn tx_to_reth_tx(tx: Transaction) -> TransactionSigned {
 				nonce,
 				gas_price,
 				gas_limit,
-				to: reth_primitives::TransactionKind::Call(to),
+				to,
 				value,
 				input,
 				access_list,
@@ -104,17 +107,17 @@ fn tx_to_reth_tx(tx: Transaction) -> TransactionSigned {
 				gas_limit,
 				max_fee_per_gas: tx.max_fee_per_gas.unwrap_or_default().as_u128(),
 				max_priority_fee_per_gas: tx.max_priority_fee_per_gas.unwrap_or_default().as_u128(),
-				to: reth_primitives::TransactionKind::Call(to),
+				to,
 				value,
 				access_list,
 				input,
 			}),
 			_ => reth_primitives::Transaction::Legacy(reth_primitives::TxLegacy {
-				chain_id: Some(chain_id),
+				chain_id: if let Some(cid) = tx.chain_id { Some(cid.as_u64()) } else { None },
 				nonce,
 				gas_price,
 				gas_limit,
-				to: reth_primitives::TransactionKind::Call(to),
+				to,
 				value,
 				input,
 			}),
