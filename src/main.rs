@@ -241,10 +241,11 @@ fn main() -> Result<()> {
 
 	let hash = H256::from_str("0x20ffc57ae0c607d4b612662251738b01c44f8a9a42a1da89a881a56a5fad426e")?;
 
-	let block = provider.get_block_with_receipts(hash)?;
-	// println!("Got block: {}", serde_json::to_string_pretty(&block)?);
+	let header = provider.get_header(hash)?;
+	let tx_root_hash = ethers_core::types::H256::from(header.transactions_root.as_fixed_bytes());
+	let transactions = provider.get_transactions_by_root(tx_root_hash)?;
 
-	let frames = frames_from_transactions(block.block.transactions);
+	let frames = frames_from_transactions(transactions);
 	let mut cb = ChannelBank::default();
 	cb.load_frames(frames);
 	let channel_data = cb.get_channel_data();
