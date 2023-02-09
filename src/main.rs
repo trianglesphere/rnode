@@ -202,6 +202,12 @@ impl Decodable for Batch {
 	}
 }
 
+struct BatchQueue {
+	l1_blocks: VecDeque<BlockWithReceipts>, // TODO: Block ID here
+	// Map batch timestamp to batches in order that they were received
+	batches: HashMap<u64, VecDeque<Batch>>,
+}
+
 fn channel_bytes_to_batches(data: Vec<u8>) -> Vec<Batch> {
 	let mut decomp = ZlibDecoder::new(&data[..]);
 	let mut buffer = Vec::default();
