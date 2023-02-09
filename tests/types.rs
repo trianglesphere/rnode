@@ -26,6 +26,8 @@ fn test_encode_header() {
 	};
 	let mut data = vec![];
 	header.encode(&mut data);
+	let expected_hash = H256::from_str("0x8c2f2af15b7b563b6ab1e09bed0e9caade7ed730aec98b70a993597a797579a9").unwrap();
+	assert_eq!(header.hash_slow(), expected_hash);
 	assert_eq!(hex::encode(&data), hex::encode(expected));
 	assert_eq!(header.length(), data.len());
 }
