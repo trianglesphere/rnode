@@ -104,10 +104,14 @@ pub struct BatchQueue {
 }
 
 impl BatchQueue {
-	pub fn load_batches(&mut self, batches: Vec<Batch>, _l1_origin: &Header) {
+	pub fn load_batches(&mut self, batches: Vec<Batch>, _l1_origin: L1BlockRef) {
 		for b in batches {
 			println!("{b:?}");
 		}
+	}
+
+	pub fn get_block_candidate(&mut self, _l2_head: L2BlockRef) -> Option<L2BlockCandidate> {
+		todo!()
 	}
 }
 
@@ -158,7 +162,7 @@ struct Derivation {
 }
 
 impl Derivation {
-	pub fn load_l1_data(&mut self, header: Header, transactions: Vec<Transaction>, _receipts: Vec<TransactionReceipt>) {
+	pub fn load_l1_data(&mut self, l1_block: L1BlockRef, transactions: Vec<Transaction>, _receipts: Vec<TransactionReceipt>) {
 		let frames = frames_from_transactions(transactions);
 		self.channel_bank.load_frames(frames);
 		let mut batches = Vec::new();
@@ -166,11 +170,11 @@ impl Derivation {
 			let mut b = channel_bytes_to_batches(data);
 			batches.append(&mut b);
 		}
-		self.batch_queue.load_batches(batches, &header);
+		self.batch_queue.load_batches(batches, l1_block);
 	}
 
-	pub fn next_l2_attributes(_l2_head: Header) -> Header {
-		todo!()
+	pub fn next_l2_attributes(&mut self, l2_head: L2BlockRef) -> Option<L2BlockCandidate> {
+		self.batch_queue.get_block_candidate(l2_head)
 	}
 }
 
@@ -189,7 +193,7 @@ fn main() -> Result<()> {
 	let receipts = provider.get_receipts_by_root(receipts_root_hash)?;
 
 	let mut derivation = Derivation::default();
-	derivation.load_l1_data(Header::default(), transactions, receipts);
+	derivation.load_l1_data(header.into(), transactions, receipts);
 
 	Ok(())
 }
