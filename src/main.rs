@@ -181,10 +181,15 @@ fn main() -> Result<()> {
 	let provider = std::env::var("RPC")?;
 	let mut provider = Client::new(&provider)?;
 	let hash = H256::from_str("0x20ffc57ae0c607d4b612662251738b01c44f8a9a42a1da89a881a56a5fad426e")?;
-	let block = provider.get_block_with_receipts(hash)?;
+
+	let header = provider.get_header(hash)?;
+	let tx_root_hash = ethers_core::types::H256::from(header.transactions_root.as_fixed_bytes());
+	let transactions = provider.get_transactions_by_root(tx_root_hash)?;
+	let receipts_root_hash = ethers_core::types::H256::from(header.receipts_root.as_fixed_bytes());
+	let receipts = provider.get_receipts_by_root(receipts_root_hash)?;
 
 	let mut derivation = Derivation::default();
-	derivation.load_l1_data(Header::default(), block.block.transactions, block.receipts);
+	derivation.load_l1_data(Header::default(), transactions, receipts);
 
 	Ok(())
 }
