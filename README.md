@@ -7,7 +7,7 @@
 ### Checklist
 
 - [ ] Derivation Pipeline
-    - [ ] 
+    - [ ] TODO
 - [ ] Execution revm Backend
     - [ ] New Transaction
     - [ ] State processing around new tx types
@@ -18,7 +18,16 @@
     - [ ] List of txs
     - [ ] Gas Limit
 - [ ] Preimage Oracle
-    - [ ]
+    - [ ] TODO
+
+### Details
+
+Execution is handled by a modified version of the [revm](https://github.com/bluealloy/revm) in a fork called [op-revm](https://github.com/refcell/op-revm).
+
+Execution Differences:
+- The modified transaction type introduces a few new fields: ``, ``, ``, ``...
+
+
 
 ### Usage
 

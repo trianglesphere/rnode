@@ -95,7 +95,7 @@ version = "0.1.0"
 dependencies = [
  "ethers-core 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "eyre",
- "revm",
+ "revm 3.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
  "serde",
  "serde_json",
 ]
@@ -1786,8 +1786,18 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "284747ad0324ed0e805dcf8f412e2beccb7a547fbd84f0607865001b8719c515"
 dependencies = [
  "auto_impl",
- "revm-interpreter 1.0.0",
- "revm-precompile",
+ "revm-interpreter 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "revm-precompile 2.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+]
+
+[[package]]
+name = "revm"
+version = "3.0.0"
+source = "git+https://github.com/refcell/op-revm#f1bb925cf650c38f137aa578e11349a48f6fc451"
+dependencies = [
+ "auto_impl",
+ "revm-interpreter 1.0.0 (git+https://github.com/refcell/op-revm)",
+ "revm-precompile 2.0.0 (git+https://github.com/refcell/op-revm)",
 ]
 
 [[package]]
@@ -1798,7 +1808,18 @@ checksum = "db1b86f1d21d1852b40ec8ac9b6d31ac8a7c000875155809d41ce68f6369dc56"
 dependencies = [
  "derive_more",
  "enumn",
- "revm-primitives",
+ "revm-primitives 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "sha3",
+]
+
+[[package]]
+name = "revm-interpreter"
+version = "1.0.0"
+source = "git+https://github.com/refcell/op-revm#f1bb925cf650c38f137aa578e11349a48f6fc451"
+dependencies = [
+ "derive_more",
+ "enumn",
+ "revm-primitives 1.0.0 (git+https://github.com/refcell/op-revm)",
  "sha3",
 ]
 
@@ -1829,7 +1850,23 @@ dependencies = [
  "k256",
  "num",
  "once_cell",
- "revm-primitives",
+ "revm-primitives 1.0.0 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ripemd",
+ "secp256k1 0.26.0",
+ "sha2",
+ "sha3",
+ "substrate-bn",
+]
+
+[[package]]
+name = "revm-precompile"
+version = "2.0.0"
+source = "git+https://github.com/refcell/op-revm#f1bb925cf650c38f137aa578e11349a48f6fc451"
+dependencies = [
+ "k256",
+ "num",
+ "once_cell",
+ "revm-primitives 1.0.0 (git+https://github.com/refcell/op-revm)",
  "ripemd",
  "secp256k1 0.26.0",
  "sha2",
@@ -1842,6 +1879,24 @@ name = "revm-primitives"
 version = "1.0.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "ad165d3f69e4d14405d82c6625864ee48c162dcebdf170322e6dd80398226a9e"
+dependencies = [
+ "auto_impl",
+ "bytes",
+ "derive_more",
+ "enumn",
+ "fixed-hash",
+ "hashbrown 0.13.2",
+ "hex",
+ "hex-literal",
+ "rlp",
+ "ruint",
+ "sha3",
+]
+
+[[package]]
+name = "revm-primitives"
+version = "1.0.0"
+source = "git+https://github.com/refcell/op-revm#f1bb925cf650c38f137aa578e11349a48f6fc451"
 dependencies = [
  "auto_impl",
  "bytes",
@@ -1925,6 +1980,7 @@ dependencies = [
  "futures",
  "reth-primitives",
  "reth-rlp",
+ "revm 3.0.0 (git+https://github.com/refcell/op-revm)",
  "serde",
  "serde_json",
  "tokio",
