@@ -24,6 +24,13 @@ pub use types::*;
 // Module Data
 pub mod data;
 pub use data::*;
+// MPT utils
+pub mod mpt;
+pub use mpt::*;
+
+// ConfigUpdateEventABI      = "ConfigUpdate(uint256,uint8,bytes)"
+// ConfigUpdateEventABIHash  = crypto.Keccak256Hash([]byte(ConfigUpdateEventABI))
+// ConfigUpdateEventVersion0 = common.Hash{}
 
 #[derive(Default)]
 struct Channel {
