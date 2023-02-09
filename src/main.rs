@@ -7,7 +7,7 @@ use ethers_core::{
 };
 use eyre::Result;
 use flate2::read::ZlibDecoder;
-use std::io::Read;
+use std::{collections::hash_map::Entry, io::Read};
 use std::{
 	collections::{HashMap, VecDeque},
 	str::FromStr,
@@ -71,7 +71,7 @@ impl Channel {
 impl ChannelBank {
 	pub fn load_frames(&mut self, frames: Vec<Frame>) {
 		for frame in frames {
-			if let std::collections::hash_map::Entry::Vacant(e) = self.channels_map.entry(frame.id) {
+			if let Entry::Vacant(e) = self.channels_map.entry(frame.id) {
 				e.insert(Channel::default());
 				self.channels_by_creation.push_back(frame.id);
 			}
@@ -98,15 +98,20 @@ impl ChannelBank {
 
 #[derive(Default)]
 pub struct BatchQueue {
-	l1_blocks: VecDeque<BlockWithReceipts>, // TODO: Block ID here
+	l1_blocks: VecDeque<L1BlockRef>,
 	// Map batch timestamp to batches in order that they were received
 	batches: HashMap<u64, VecDeque<Batch>>,
 }
 
 impl BatchQueue {
-	pub fn load_batches(&mut self, batches: Vec<Batch>, _l1_origin: L1BlockRef) {
+	pub fn load_batches(&mut self, batches: Vec<Batch>, l1_origin: L1BlockRef) {
+		self.l1_blocks.push_back(l1_origin);
 		for b in batches {
 			println!("{b:?}");
+			if let Entry::Vacant(e) = self.batches.entry(b.batch.timestamp) {
+				e.insert(VecDeque::default());
+			}
+			self.batches.get_mut(&b.batch.timestamp).unwrap().push_back(b);
 		}
 	}
 
