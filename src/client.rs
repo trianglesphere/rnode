@@ -1,4 +1,4 @@
-use ethers_core::types::{Block, Transaction, TransactionReceipt, H256};
+use ethers_core::types::{Transaction, TransactionReceipt, H256};
 use ethers_providers::{Http, Middleware, Provider};
 use eyre::Result;
 use std::{collections::HashMap, convert::TryFrom};
@@ -34,27 +34,15 @@ impl Client {
 	}
 
 	/// Gets a block header by block hash
-	pub fn get_header(&self, hash: H256) -> Result<Header> {
-		let block = self.get_block_with_txs(hash)?;
-		let header = types::header_from_block(block)?;
-		Ok(header)
-	}
-
-	/// Gets a block with transactions
-	pub fn get_block_with_txs(&self, hash: H256) -> Result<Block<Transaction>> {
+	pub fn get_header(&mut self, hash: H256) -> Result<Header> {
 		let block =
 			self.rt.block_on(self.provider.get_block_with_txs(hash))?
 				.ok_or(eyre::eyre!("did not find the block"))?;
-		Ok(block)
-	}
-
-	/// Gets a block with its receipts
-	pub fn get_block_with_receipts(&mut self, hash: H256) -> Result<BlockWithReceipts> {
-		let block = self.get_block_with_txs(hash)?;
 		self.transactions.insert(block.transactions_root, block.transactions.clone());
 		let receipts = self.get_receipts_by_transactions(&block.transactions)?;
-		self.receipts.insert(block.receipts_root, receipts.clone());
-		Ok(BlockWithReceipts { block, receipts })
+		self.receipts.insert(block.receipts_root, receipts);
+		let header = types::header_from_block(block)?;
+		Ok(header)
 	}
 
 	/// Get receipts by the recipt root
@@ -65,6 +53,14 @@ impl Client {
 			.cloned()
 	}
 
+	/// Get transactions by the transaction root
+	pub fn get_transactions_by_root(&self, root: H256) -> Result<Vec<Transaction>> {
+		self.transactions
+			.get(&root)
+			.ok_or(eyre::eyre!("missing transactions for given root in internal store"))
+			.cloned()
+	}
+
 	/// Get transaction receipts for a list of transactions
 	fn get_receipts_by_transactions(&self, transactions: &[Transaction]) -> Result<Vec<TransactionReceipt>> {
 		let mut receipts = Vec::new();
@@ -72,7 +68,6 @@ impl Client {
 			let receipt = self.get_transaction_receipt(tx.hash)?;
 			receipts.push(receipt)
 		}
-
 		Ok(receipts)
 	}
 
@@ -80,13 +75,5 @@ impl Client {
 	fn get_transaction_receipt(&self, transaction_hash: H256) -> Result<TransactionReceipt> {
 		let receipt = self.rt.block_on(self.provider.get_transaction_receipt(transaction_hash))?;
 		receipt.ok_or(eyre::eyre!("did not find the receipt"))
-	}
-
-	/// Get transactions by the transaction root
-	pub fn get_transactions_by_root(&self, root: H256) -> Result<Vec<Transaction>> {
-		self.transactions
-			.get(&root)
-			.ok_or(eyre::eyre!("missing transactions for given root in internal store"))
-			.cloned()
 	}
 }
