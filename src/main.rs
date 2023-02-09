@@ -81,7 +81,7 @@ fn system_config_from_receipts(receipts: Vec<TransactionReceipt>, prev: SystemCo
 		.filter(|l| l.address == l1_system_config_addr)
 		.filter(|l| l.topics.len() > 1 && l.topics[0] == config_update_abi)
 		.collect();
-	return prev;
+	prev
 }
 
 struct Frame {
@@ -92,9 +92,7 @@ struct Frame {
 }
 
 fn parse_frames(tx_data: &[u8]) -> Vec<Frame> {
-	if tx_data.len() == 0 {
-		return Vec::default();
-	} else if tx_data[0] != 0 {
+	if tx_data.is_empty() && tx_data[0] != 0 {
 		return Vec::default();
 	}
 	let mut tx_data = &tx_data[1..];
@@ -119,7 +117,7 @@ fn parse_frames(tx_data: &[u8]) -> Vec<Frame> {
 
 		out.push(Frame { id, number, data, is_last });
 
-		if tx_data.len() == 0 {
+		if tx_data.is_empty() {
 			return out;
 		}
 	}
@@ -140,9 +138,7 @@ struct Channel {
 
 impl Channel {
 	pub fn load_frame(&mut self, frame: Frame) {
-		if !self.frames.contains_key(&frame.number) {
-			self.frames.insert(frame.number, frame);
-		}
+		self.frames.entry(frame.number).or_insert(frame);
 	}
 
 	pub fn is_ready(&self) -> bool {
@@ -173,8 +169,8 @@ impl Channel {
 impl ChannelBank {
 	pub fn load_frames(&mut self, frames: Vec<Frame>) {
 		for frame in frames {
-			if !self.channels_map.contains_key(&frame.id) {
-				self.channels_map.insert(frame.id, Channel::default());
+			if let std::collections::hash_map::Entry::Vacant(e) = self.channels_map.entry(frame.id) {
+				e.insert(Channel::default());
 				self.channels_by_creation.push_back(frame.id);
 			}
 			self.channels_map.get_mut(&frame.id).unwrap().load_frame(frame);
