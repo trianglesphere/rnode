@@ -66,7 +66,7 @@ fn parse_frames(tx_data: &[u8]) -> Vec<Frame> {
 		let len = u32::from_be_bytes(tx_data[18..22].try_into().unwrap());
 		let ulen = len as usize;
 		let data = tx_data[22..22 + ulen].to_vec();
-		println!("{id} {number} {len} {}", data.len());
+		// dbg!(id, number, len, data.len());
 		let is_last = tx_data[22 + ulen];
 		let is_last = if is_last == 0 {
 			false
@@ -172,9 +172,7 @@ impl Decodable for BatchV1 {
 		let epoch_num: u64 = rlp.val_at(1)?;
 		let epoch_hash: H256 = rlp.val_at(2)?;
 		let timestamp: u64 = rlp.val_at(3)?;
-		println!("decode batchv1 a");
 		let transactions: Vec<Vec<u8>> = rlp.list_at(4)?;
-		println!("decode batchv1 b");
 
 		Ok(BatchV1 {
 			parent_hash,
@@ -194,7 +192,6 @@ struct Batch {
 
 impl Decodable for Batch {
 	fn decode(rlp: &Rlp) -> Result<Self, DecoderError> {
-		println!("decoding");
 		// TODO: Make this more robust
 		let first = rlp.as_raw()[0];
 		if first != 0 {
@@ -207,13 +204,20 @@ impl Decodable for Batch {
 
 fn channel_bytes_to_batches(data: Vec<u8>) -> Vec<Batch> {
 	let mut decomp = ZlibDecoder::new(&data[..]);
-	let mut buffer = Vec::new();
+	let mut buffer = Vec::default();
+
 	// TODO: Handle this error
-	let res = decomp.read_to_end(&mut buffer);
-	// println!("{res:?}");
-	// println!("{}", HexSlice::new(&buffer));
-	// TODO: Truncate data to 10KB (post compression_)
-	let b = decode(&buffer).unwrap();
+	// Decompress the passed data with zlib
+	decomp.read_to_end(&mut buffer).unwrap();
+
+	// TODO: Truncate data to 10KB (post compression)
+	// The data we received is an RLP encoded string. Before decoding the batch itself,
+	// we need to decode the string to get the actual batch data.
+	let decoded_batch = decode::<Vec<u8>>(&buffer).unwrap();
+	// Decode the batch itself.
+	let b: Batch = decode(&decoded_batch).unwrap();
+
+	dbg!(&b);
 
 	vec![b]
 }
@@ -246,9 +250,8 @@ fn main() -> Result<()> {
 	let channel_data = cb.get_channel_data();
 
 	if let Some(d) = channel_data {
-		println!("{}", d.len());
 		let batches = channel_bytes_to_batches(d);
-		println!("Got batches: {:#?}", batches);
+		println!("Got batches: {batches:?}");
 	} else {
 		println!("Invalid batch")
 	}
