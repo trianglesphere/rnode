@@ -72,22 +72,22 @@ fn tx_to_reth_tx(tx: Transaction) -> TransactionSigned {
 	};
 	let value = tx.value.as_u128();
 	let input = reth_primitives::Bytes(tx.input.clone().0);
-	let access_list = reth_primitives::AccessList(
-		tx.access_list
-			.as_ref()
-			.unwrap()
-			.0
-			.iter()
-			.map(|item| reth_primitives::AccessListItem {
-				address: reth_primitives::H160::from(item.address.as_fixed_bytes()),
-				storage_keys: item
-					.storage_keys
-					.iter()
-					.map(|key| reth_primitives::H256::from(key.as_fixed_bytes()))
-					.collect(),
-			})
-			.collect::<Vec<reth_primitives::AccessListItem>>(),
-	);
+	let access_list: Option<reth_primitives::AccessList> = tx.access_list.as_ref().map(|access_list| {
+		reth_primitives::AccessList(
+			access_list
+				.0
+				.iter()
+				.map(|item| reth_primitives::AccessListItem {
+					address: reth_primitives::H160::from(item.address.as_fixed_bytes()),
+					storage_keys: item
+						.storage_keys
+						.iter()
+						.map(|key| reth_primitives::H256::from(key.as_fixed_bytes()))
+						.collect(),
+				})
+				.collect::<Vec<reth_primitives::AccessListItem>>(),
+		)
+	});
 
 	let inner_tx: reth_primitives::Transaction = match tx.transaction_type {
 		Some(tx_type) => match tx_type.as_u64() {
@@ -99,7 +99,7 @@ fn tx_to_reth_tx(tx: Transaction) -> TransactionSigned {
 				to,
 				value,
 				input,
-				access_list,
+				access_list: access_list.unwrap_or_default(),
 			}),
 			2 => reth_primitives::Transaction::Eip1559(reth_primitives::TxEip1559 {
 				chain_id,
@@ -109,11 +109,11 @@ fn tx_to_reth_tx(tx: Transaction) -> TransactionSigned {
 				max_priority_fee_per_gas: tx.max_priority_fee_per_gas.unwrap_or_default().as_u128(),
 				to,
 				value,
-				access_list,
+				access_list: access_list.unwrap_or_default(),
 				input,
 			}),
 			_ => reth_primitives::Transaction::Legacy(reth_primitives::TxLegacy {
-				chain_id: if let Some(cid) = tx.chain_id { Some(cid.as_u64()) } else { None },
+				chain_id: tx.chain_id.map(|cid| cid.as_u64()),
 				nonce,
 				gas_price,
 				gas_limit,
@@ -130,8 +130,8 @@ fn tx_to_reth_tx(tx: Transaction) -> TransactionSigned {
 		signature: reth_primitives::Signature {
 			r: reth_primitives::U256::from_limbs(tx.r.0),
 			s: reth_primitives::U256::from_limbs(tx.s.0),
-			// An odd v means that the y-parity of the signature is odd.
-			odd_y_parity: tx.v % 2 == reth_primitives::U64::from(1),
+			// An odd v means that the y-parity of the signature is true.
+			odd_y_parity: tx.v.as_u64() % 2 == 1,
 		},
 		transaction: inner_tx,
 	}
