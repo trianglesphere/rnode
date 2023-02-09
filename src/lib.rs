@@ -17,9 +17,13 @@ pub mod client;
 /// The oracle module
 pub mod oracle;
 
+/// Common Types
+pub mod types;
+
 /// A prelude of common types for easy usage of the [rsnode](crate) crate.
 pub mod prelude {
 	pub use super::backend::*;
 	pub use super::client::*;
 	pub use super::oracle::*;
+	pub use super::types::*;
 }

@@ -1,18 +1,10 @@
 use ethers_core::types::{Block, Transaction, TransactionReceipt, H256};
 use ethers_providers::{Http, Middleware, Provider};
 use eyre::Result;
-use serde::{Deserialize, Serialize};
 use std::{collections::HashMap, convert::TryFrom};
 use tokio::runtime::Runtime;
 
-/// A block with its receipts
-#[derive(Serialize, Deserialize, Debug)]
-pub struct BlockWithReceipts {
-	/// The block
-	pub block: Block<Transaction>,
-	/// The receipts
-	pub receipts: Vec<TransactionReceipt>,
-}
+use crate::types::*;
 
 /// Client wraps a web3 provider to provide L1 pre-image oracle support.
 #[derive(Debug)]
@@ -42,7 +34,13 @@ impl Client {
 	}
 
 	/// Gets a block header by block hash
-	pub fn get_header(&self, hash: H256) -> Result<Block<Transaction>> {
+	pub fn get_header(&self, hash: H256) -> Result<Header> {
+		let block = self.get_block_with_txs(hash)?;
+		Ok(Header::from(block))
+	}
+
+	/// Gets a block with transactions
+	pub fn get_block_with_txs(&self, hash: H256) -> Result<Block<Transaction>> {
 		let block =
 			self.rt.block_on(self.provider.get_block_with_txs(hash))?
 				.ok_or(eyre::eyre!("did not find the block"))?;
@@ -51,9 +49,7 @@ impl Client {
 
 	/// Gets a block with its receipts
 	pub fn get_block_with_receipts(&mut self, hash: H256) -> Result<BlockWithReceipts> {
-		let block =
-			self.rt.block_on(self.provider.get_block_with_txs(hash))?
-				.ok_or(eyre::eyre!("did not find the block"))?;
+		let block = self.get_block_with_txs(hash)?;
 		self.transactions.insert(block.transactions_root, block.transactions.clone());
 		let receipts = self.get_receipts_by_transactions(&block.transactions)?;
 		self.receipts.insert(block.receipts_root, receipts.clone());
@@ -69,7 +65,7 @@ impl Client {
 	}
 
 	/// Get transaction receipts for a list of transactions
-	pub fn get_receipts_by_transactions(&self, transactions: &[Transaction]) -> Result<Vec<TransactionReceipt>> {
+	fn get_receipts_by_transactions(&self, transactions: &[Transaction]) -> Result<Vec<TransactionReceipt>> {
 		let mut receipts = Vec::new();
 		for tx in transactions.iter() {
 			let receipt = self.get_transaction_receipt(tx.hash)?;

@@ -13,6 +13,10 @@ use std::collections::{HashMap, VecDeque};
 pub mod client;
 pub use client::*;
 
+// Module Types
+pub mod types;
+pub use types::*;
+
 // ConfigUpdateEventABI      = "ConfigUpdate(uint256,uint8,bytes)"
 // ConfigUpdateEventABIHash  = crypto.Keccak256Hash([]byte(ConfigUpdateEventABI))
 // ConfigUpdateEventVersion0 = common.Hash{}
