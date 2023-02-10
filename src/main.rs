@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 #![feature(hash_drain_filter)]
+#![feature(is_some_and)]
 
 use dotenv::dotenv;
 use ethers_core::{
@@ -27,14 +28,13 @@ pub use types::*;
 pub mod data;
 pub use data::*;
 
-#[derive(Default)]
+#[derive(Debug)]
 struct Channel {
 	frames: HashMap<u16, Frame>,
 	id: H128,
-	closed: bool,
 	size: u64,
 	highest_frame_number: u16,
-	end_frame_number: u16,
+	end_frame_number: Option<u16>,
 	lowest_l1_block: BlockID,
 	highest_l1_block: BlockID,
 }
@@ -47,42 +47,37 @@ struct ChannelBank {
 }
 
 impl Channel {
-	pub fn new(frame: Frame, l1_block: BlockID) -> Self {
-		let mut c = Channel {
+	pub fn new(id: H128, l1_block: BlockID) -> Self {
+		Self {
 			frames: HashMap::new(),
-			id: frame.id,
-			closed: false,
+			id,
 			size: 0,
 			highest_frame_number: 0,
-			end_frame_number: 0, // TODO: Option here
+			end_frame_number: None,
 			lowest_l1_block: l1_block,
 			highest_l1_block: l1_block,
-		};
-		c.load_frame(frame, l1_block);
-
-		c
+		}
 	}
 
 	pub fn load_frame(&mut self, frame: Frame, l1_block: BlockID) {
 		// These checks are specififed & cannot be changed without a HF
 		if self.id != frame.id
-			|| self.closed && frame.is_last
+			|| self.closed() && frame.is_last
 			|| self.frames.contains_key(&frame.number)
-			|| self.closed && frame.number > self.highest_frame_number
+			|| self.closed() && frame.number > self.highest_frame_number
 		{
 			return;
 		}
 		// Will always succeed at this point
 		if frame.is_last {
-			self.closed = true;
-			self.end_frame_number = frame.number;
-		}
-		// Prune higher frames if this is the closing frame
-		if frame.is_last && self.end_frame_number > self.highest_frame_number {
-			self.frames.drain_filter(|k, _| *k > self.end_frame_number).for_each(|(_, v)| {
-				self.size -= v.size();
-			});
-			self.highest_frame_number = self.end_frame_number
+			self.end_frame_number = Some(frame.number);
+			// Prune higher frames if this is the closing frame
+			if frame.number > self.highest_frame_number {
+				self.frames.drain_filter(|k, _| *k > frame.number).for_each(|(_, v)| {
+					self.size -= v.size();
+				});
+				self.highest_frame_number = frame.number
+			}
 		}
 
 		self.highest_frame_number = max(self.highest_frame_number, frame.number);
@@ -92,60 +87,83 @@ impl Channel {
 	}
 
 	pub fn is_ready(&self) -> bool {
-		if !self.closed {
-			return false;
-		}
-		let len = self.frames.len() as u16;
-		if len != self.end_frame_number + 1 {
-			return false;
-		}
-		for i in 0..len {
-			if !self.frames.contains_key(&i) {
-				return false;
-			}
-		}
-		true
+		let last = match self.end_frame_number {
+			Some(n) => n,
+			None => return false,
+		};
+		(0..=last).map(|i| self.frames.contains_key(&i)).all(|a| a)
 	}
 
-	pub fn data(&mut self) -> Option<Vec<u8>> {
-		let max = self.frames.len() as u16;
-		if !self.is_ready() {
-			return None;
-		}
-		let mut out = Vec::new();
-		for i in 0..max {
-			let data = &mut self.frames.get_mut(&i).unwrap().data;
-			out.append(data);
-		}
-		Some(out)
+	// data returns the channel data. It will panic if `is_ready` is false.
+	pub fn data(&mut self) -> Vec<u8> {
+		(0..=self.end_frame_number.unwrap())
+			.flat_map(|i| self.frames.remove(&i).unwrap().data)
+			.collect()
+	}
+
+	fn closed(&self) -> bool {
+		self.end_frame_number.is_some()
+	}
+
+	pub fn is_timed_out(&self) -> bool {
+		// TODO: > or >= here?
+		self.highest_l1_block.number - self.lowest_l1_block.number > CHANNEL_TIMEOUT
 	}
 }
 
+const MAX_CHANNEL_BANK_SIZE: u64 = 100_000_000;
+const CHANNEL_TIMEOUT: u64 = 100;
+
 impl ChannelBank {
-	pub fn load_frames(&mut self, frames: Vec<Frame>) {
+	pub fn load_frames(&mut self, frames: Vec<Frame>, l1_block: BlockID) {
 		for frame in frames {
-			if let Entry::Vacant(e) = self.channels_map.entry(frame.id) {
-				e.insert(Channel::default());
-				self.channels_by_creation.push_back(frame.id);
-			}
-			self.channels_map.get_mut(&frame.id).unwrap().load_frame(frame, BlockID::default());
-			// TODO: prune
+			// TODO: Technically we need to pull data first
+			self.load_frame(frame, l1_block)
 		}
 	}
 
+	fn load_frame(&mut self, frame: Frame, l1_block: BlockID) {
+		assert!(
+			!self.peek().is_some_and(|c| c.is_ready()),
+			"Specs Violation: must pull data before loading more in the channel bank"
+		);
+
+		self.channels_map
+			.entry(frame.id)
+			.or_insert_with(|| {
+				self.channels_by_creation.push_back(frame.id);
+				Channel::new(frame.id, l1_block)
+			})
+			.load_frame(frame, l1_block);
+		self.prune();
+	}
+
 	pub fn get_channel_data(&mut self) -> Option<Vec<u8>> {
-		let curr = self.channels_by_creation.front()?;
-		let ch = self.channels_map.get(curr).unwrap();
-
-		if ch.is_ready() {
-			let mut ch = self.channels_map.remove(curr).unwrap();
-			self.channels_by_creation.pop_front();
-
-			// TODO: Check if channel is timed out before returning
-			return ch.data();
+		if self.peek()?.is_ready() {
+			let mut ch = self.remove().unwrap();
+			if !ch.is_timed_out() {
+				return Some(ch.data());
+			}
 		}
-
 		None
+	}
+
+	fn peek(&self) -> Option<&Channel> {
+		self.channels_map.get(self.channels_by_creation.front()?)
+	}
+
+	fn remove(&mut self) -> Option<Channel> {
+		self.channels_map.remove(&self.channels_by_creation.pop_front()?)
+	}
+
+	fn prune(&mut self) {
+		while self.total_size() > MAX_CHANNEL_BANK_SIZE {
+			self.remove().expect("Should have removed a channel");
+		}
+	}
+
+	fn total_size(&self) -> u64 {
+		self.channels_map.values().map(|c| c.size).sum()
 	}
 }
 
@@ -239,7 +257,7 @@ struct Derivation {
 impl Derivation {
 	pub fn load_l1_data(&mut self, l1_block: L1BlockRef, transactions: Vec<Transaction>, _receipts: Vec<TransactionReceipt>) {
 		let frames = frames_from_transactions(transactions);
-		self.channel_bank.load_frames(frames);
+		self.channel_bank.load_frames(frames, l1_block.into());
 		let mut batches = Vec::new();
 		while let Some(data) = self.channel_bank.get_channel_data() {
 			let mut b = channel_bytes_to_batches(data);

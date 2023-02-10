@@ -59,6 +59,16 @@ impl From<Header> for BlockID {
 	}
 }
 
+impl From<L1BlockRef> for BlockID {
+	fn from(h: L1BlockRef) -> Self {
+		Self {
+			hash: h.hash,
+			number: h.number,
+			parent_hash: h.parent_hash,
+		}
+	}
+}
+
 impl From<Header> for L1BlockRef {
 	fn from(h: Header) -> Self {
 		Self {
