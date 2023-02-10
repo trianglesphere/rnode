@@ -37,11 +37,11 @@ pub struct Frame {
 
 #[derive(Debug)]
 pub struct BatchV1 {
-	parent_hash: H256,
-	epoch_num: u64,
-	epoch_hash: H256,
-	timestamp: u64,
-	transactions: Vec<Vec<u8>>,
+	pub parent_hash: H256,
+	pub epoch_num: u64,
+	pub epoch_hash: H256,
+	pub timestamp: u64,
+	pub transactions: Vec<Vec<u8>>,
 }
 
 #[derive(Debug)]
@@ -77,6 +77,12 @@ impl Decodable for BatchV1 {
 			timestamp,
 			transactions,
 		})
+	}
+}
+
+impl Frame {
+	pub fn size(&self) -> u64 {
+		self.data.len() as u64 + 200
 	}
 }
 
