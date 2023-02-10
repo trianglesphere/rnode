@@ -6,36 +6,12 @@
 //!
 //! TODO: docs
 
-/// The client
-pub mod client {
-	pub use client::*;
-}
-
-/// The derivation pipeline
-pub mod derivation {
-	pub use derivation::*;
-}
-
 /// The backend database
 pub mod backend {
 	pub use backend::*;
 }
 
-/// Execution environment
-pub mod execution {
-	pub use execution::*;
-}
-
-/// Common rsnode types
-pub mod common {
-	pub use common::*;
-}
-
 /// A prelude of common types for easy usage of the [rsnode](crate) crate.
 pub mod prelude {
 	pub use super::backend::*;
-	pub use super::client::*;
-	pub use super::common::*;
-	pub use super::derivation::*;
-	pub use super::execution::*;
 }
