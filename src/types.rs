@@ -3,14 +3,26 @@ pub use reth_primitives::Header;
 use reth_primitives::H256;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
 pub struct BlockID {
 	pub hash: H256,
 	pub number: u64,
 	pub parent_hash: H256,
 }
 
-#[derive(Debug, Clone, Copy)]
+impl Ord for BlockID {
+	fn cmp(&self, other: &Self) -> std::cmp::Ordering {
+		self.number.cmp(&other.number)
+	}
+}
+
+impl PartialOrd for BlockID {
+	fn partial_cmp(&self, other: &Self) -> Option<std::cmp::Ordering> {
+		Some(self.number.cmp(&other.number))
+	}
+}
+
+#[derive(Debug, Clone, Copy, Default)]
 pub struct L1BlockRef {
 	pub hash: H256,
 	pub number: u64,
@@ -18,7 +30,7 @@ pub struct L1BlockRef {
 	pub time: u64,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, Default)]
 pub struct L2BlockRef {
 	pub hash: H256,
 	pub number: u64,

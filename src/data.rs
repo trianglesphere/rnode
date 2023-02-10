@@ -80,6 +80,12 @@ impl Decodable for BatchV1 {
 	}
 }
 
+impl Frame {
+	pub fn size(&self) -> u64 {
+		self.data.len() as u64 + 200
+	}
+}
+
 // TODO: Clean this up
 pub fn parse_frames(tx_data: &[u8]) -> Vec<Frame> {
 	if tx_data.is_empty() || tx_data[0] != 0 {

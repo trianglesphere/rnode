@@ -1,4 +1,5 @@
 #![allow(dead_code)]
+#![feature(hash_drain_filter)]
 
 use dotenv::dotenv;
 use ethers_core::{
@@ -7,6 +8,7 @@ use ethers_core::{
 };
 use eyre::Result;
 use flate2::read::ZlibDecoder;
+use std::cmp::max;
 use std::{collections::hash_map::Entry, io::Read};
 use std::{
 	collections::{HashMap, VecDeque},
@@ -28,7 +30,13 @@ pub use data::*;
 #[derive(Default)]
 struct Channel {
 	frames: HashMap<u16, Frame>,
-	// TODO: Size + handling insertion of frames
+	id: H128,
+	closed: bool,
+	size: u64,
+	highest_frame_number: u16,
+	end_frame_number: u16,
+	lowest_l1_block: BlockID,
+	highest_l1_block: BlockID,
 }
 
 #[derive(Default)]
@@ -39,18 +47,64 @@ struct ChannelBank {
 }
 
 impl Channel {
-	pub fn load_frame(&mut self, frame: Frame) {
-		self.frames.entry(frame.number).or_insert(frame);
+	pub fn new(frame: Frame, l1_block: BlockID) -> Self {
+		let mut c = Channel {
+			frames: HashMap::new(),
+			id: frame.id,
+			closed: false,
+			size: 0,
+			highest_frame_number: 0,
+			end_frame_number: 0, // TODO: Option here
+			lowest_l1_block: l1_block,
+			highest_l1_block: l1_block,
+		};
+		c.load_frame(frame, l1_block);
+
+		c
+	}
+
+	pub fn load_frame(&mut self, frame: Frame, l1_block: BlockID) {
+		// These checks are specififed & cannot be changed without a HF
+		if self.id != frame.id
+			|| self.closed && frame.is_last
+			|| self.frames.contains_key(&frame.number)
+			|| self.closed && frame.number > self.highest_frame_number
+		{
+			return;
+		}
+		// Will always succeed at this point
+		if frame.is_last {
+			self.closed = true;
+			self.end_frame_number = frame.number;
+		}
+		// Prune higher frames if this is the closing frame
+		if frame.is_last && self.end_frame_number > self.highest_frame_number {
+			self.frames.drain_filter(|k, _| *k > self.end_frame_number).for_each(|(_, v)| {
+				self.size -= v.size();
+			});
+			self.highest_frame_number = self.end_frame_number
+		}
+
+		self.highest_frame_number = max(self.highest_frame_number, frame.number);
+		self.highest_l1_block = max(self.highest_l1_block, l1_block);
+		self.size += frame.size();
+		self.frames.insert(frame.number, frame);
 	}
 
 	pub fn is_ready(&self) -> bool {
-		let max = self.frames.len() as u16;
-		for i in 0..max {
+		if !self.closed {
+			return false;
+		}
+		let len = self.frames.len() as u16;
+		if len != self.end_frame_number + 1 {
+			return false;
+		}
+		for i in 0..len {
 			if !self.frames.contains_key(&i) {
 				return false;
 			}
 		}
-		return self.frames.get(&(max - 1)).unwrap().is_last;
+		true
 	}
 
 	pub fn data(&mut self) -> Option<Vec<u8>> {
@@ -58,7 +112,6 @@ impl Channel {
 		if !self.is_ready() {
 			return None;
 		}
-		// TODO: Check is closed
 		let mut out = Vec::new();
 		for i in 0..max {
 			let data = &mut self.frames.get_mut(&i).unwrap().data;
@@ -75,7 +128,7 @@ impl ChannelBank {
 				e.insert(Channel::default());
 				self.channels_by_creation.push_back(frame.id);
 			}
-			self.channels_map.get_mut(&frame.id).unwrap().load_frame(frame);
+			self.channels_map.get_mut(&frame.id).unwrap().load_frame(frame, BlockID::default());
 			// TODO: prune
 		}
 	}
@@ -103,6 +156,9 @@ pub struct BatchQueue {
 	batches: HashMap<u64, VecDeque<Batch>>,
 }
 
+const L2_BLOCK_TIME: u64 = 2u64;
+const SEQ_WINDOW_SIZE: u64 = 3600u64;
+
 impl BatchQueue {
 	pub fn load_batches(&mut self, batches: Vec<Batch>, l1_origin: L1BlockRef) {
 		self.l1_blocks.push_back(l1_origin);
@@ -115,8 +171,22 @@ impl BatchQueue {
 		}
 	}
 
-	pub fn get_block_candidate(&mut self, _l2_head: L2BlockRef) -> Option<L2BlockCandidate> {
-		todo!()
+	pub fn get_block_candidate(&mut self, l2_head: L2BlockRef) -> Option<L2BlockCandidate> {
+		let next_timestamp = l2_head.time + L2_BLOCK_TIME;
+		if let Some(candidates) = self.batches.get(&next_timestamp) {
+			let out = candidates.front().expect("Should have entry in any created queue");
+			// TODO: Throw out the batch if we can't decode it.
+			let txns = out.batch.transactions.iter().map(|t| decode::<Transaction>(t).unwrap()).collect();
+			self.batches.remove(&next_timestamp);
+			// TODO: deposits, seq number, transactions from batches
+			return Some(L2BlockCandidate {
+				number: l2_head.number + 1,
+				timestamp: next_timestamp,
+				transactions: txns,
+			});
+		}
+
+		None
 	}
 }
 
