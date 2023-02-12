@@ -20,6 +20,11 @@ pub mod oracle;
 /// Common Types
 pub mod types;
 
+/// The execution environment
+pub mod execution {
+	pub use execution::*;
+}
+
 /// A prelude of common types for easy usage of the [rsnode](crate) crate.
 pub mod prelude {
 	pub use super::backend::*;
