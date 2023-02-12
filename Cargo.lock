@@ -644,6 +644,14 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0198b9d0078e0f30dedc7acbb21c974e838fc8fae3ee170128658a98cb2c1c04"
 
 [[package]]
+name = "execution"
+version = "0.1.0"
+dependencies = [
+ "eyre",
+ "revm 3.0.0 (git+https://github.com/refcell/op-revm)",
+]
+
+[[package]]
 name = "eyre"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -1975,6 +1983,7 @@ dependencies = [
  "dotenv",
  "ethers-core 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethers-providers",
+ "execution",
  "eyre",
  "flate2",
  "futures",

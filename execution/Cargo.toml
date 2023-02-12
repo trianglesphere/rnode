@@ -1,0 +1,8 @@
+[package]
+name = "execution"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+revm = { git = "https://github.com/refcell/op-revm" }
+eyre = "0.6.8"
