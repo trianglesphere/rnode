@@ -1,10 +1,9 @@
 use crate::Provider;
 use core::prelude::*;
-use core::types::{ethers_h256_to_h256, h256_to_ethers};
+use core::types::{ethers_h256_to_h256, h256_to_ethers, Header};
 
 use ethers_providers::{Http, Middleware, Provider as RPCProvider};
 use eyre::Result;
-pub use reth_primitives::Header;
 use std::{collections::HashMap, convert::TryFrom};
 use tokio::runtime::Runtime;
 

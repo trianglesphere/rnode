@@ -141,12 +141,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "bs58"
-version = "0.4.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "771fe0050b883fcc3ea2359b1a96bcfbc090b7116eae7c3c512c7a083fdf23d3"
-
-[[package]]
 name = "bumpalo"
 version = "3.12.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -203,16 +197,10 @@ name = "client"
 version = "0.1.0"
 dependencies = [
  "core",
- "dotenv",
  "ethers-core 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "ethers-providers",
  "eyre",
- "flate2",
- "futures",
  "reth-primitives",
- "reth-rlp",
- "serde",
- "serde_json",
  "tokio",
 ]
 
@@ -264,17 +252,8 @@ dependencies = [
 name = "core"
 version = "0.1.0"
 dependencies = [
- "dotenv",
  "ethers-core 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethers-providers",
- "eyre",
- "flate2",
- "futures",
  "reth-primitives",
- "reth-rlp",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -438,12 +417,9 @@ name = "derivation"
 version = "0.1.0"
 dependencies = [
  "core",
- "dotenv",
  "ethers-core 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
  "eyre",
  "flate2",
- "reth-primitives",
- "reth-rlp",
 ]
 
 [[package]]
@@ -514,24 +490,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "071a31f4ee85403370b58aca746f01041ede6f0da2730960ad001edc2b71b394"
 dependencies = [
  "cfg-if",
-]
-
-[[package]]
-name = "enr"
-version = "0.7.0"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "492a7e5fc2504d5fdce8e124d3e263b244a68b283cac67a69eda0cd43e0aebad"
-dependencies = [
- "base64 0.13.1",
- "bs58",
- "bytes",
- "hex",
- "log",
- "rand",
- "rlp",
- "secp256k1",
- "sha3",
- "zeroize",
 ]
 
 [[package]]
@@ -683,12 +641,6 @@ dependencies = [
  "web-sys",
  "ws_stream_wasm",
 ]
-
-[[package]]
-name = "ethnum"
-version = "1.3.2"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "0198b9d0078e0f30dedc7acbb21c974e838fc8fae3ee170128658a98cb2c1c04"
 
 [[package]]
 name = "eyre"
@@ -1742,13 +1694,9 @@ dependencies = [
  "arrayvec",
  "auto_impl",
  "bytes",
- "enr",
  "ethereum-types",
- "ethnum",
  "reth-rlp-derive",
  "revm-primitives",
- "rlp",
- "smol_str",
 ]
 
 [[package]]
@@ -1836,16 +1784,7 @@ dependencies = [
  "core",
  "derivation",
  "dotenv",
- "ethers-core 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
- "ethers-providers",
  "eyre",
- "flate2",
- "futures",
- "reth-primitives",
- "reth-rlp",
- "serde",
- "serde_json",
- "tokio",
 ]
 
 [[package]]
@@ -2134,12 +2073,6 @@ name = "smallvec"
 version = "1.10.0"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "a507befe795404456341dfab10cef66ead4c041f62b8b11bbb92bffe5d0953e0"
-
-[[package]]
-name = "smol_str"
-version = "0.1.24"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "fad6c857cbab2627dcf01ec85a623ca4e7dcb5691cbaa3d7fb7653671f0d09c9"
 
 [[package]]
 name = "socket2"

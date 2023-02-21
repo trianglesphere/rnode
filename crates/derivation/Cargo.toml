@@ -4,19 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-
 core = {path = "../core"}
-
 ethers-core = "1.0.2"
 eyre = "0.6.8"
-dotenv = "0.15.0"
-reth-rlp = { git = "https://github.com/paradigmxyz/reth", features = [
-    "derive",
-    "std",
-    "ethnum",
-    "ethereum-types",
-    "enr",
-    "smol_str"
-] }
-reth-primitives = { git = "https://github.com/paradigmxyz/reth", features = [] }
 flate2 = "1.0.25"

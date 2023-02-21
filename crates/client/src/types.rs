@@ -1,5 +1,5 @@
+use core::types::Header;
 use ethers_core::types::{Block, Transaction};
-pub use reth_primitives::Header;
 
 /// Constructs a header from a given block
 pub fn header_from_block(block: Block<Transaction>) -> eyre::Result<Header> {
