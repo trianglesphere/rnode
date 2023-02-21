@@ -1,7 +1,6 @@
 use ethers_core::utils::hex;
 use std::str::FromStr;
 
-use reth_primitives::{Bytes, H256, U256};
 use reth_rlp::Encodable;
 
 use rs_node::types::*;
