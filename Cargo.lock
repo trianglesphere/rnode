@@ -1913,7 +1913,7 @@ dependencies = [
 ]
 
 [[package]]
-name = "rs-node"
+name = "rnode"
 version = "0.1.0"
 dependencies = [
  "backend",
@@ -1927,6 +1927,7 @@ dependencies = [
  "reth-rlp",
  "serde",
  "serde_json",
+ "src",
  "tokio",
 ]
 
@@ -2265,6 +2266,23 @@ checksum = "67cf02bbac7a337dc36e4f5a693db6c21e7863f45070f7064577eb4367a3212b"
 dependencies = [
  "base64ct",
  "der",
+]
+
+[[package]]
+name = "src"
+version = "0.1.0"
+dependencies = [
+ "dotenv",
+ "ethers-core 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "ethers-providers",
+ "eyre",
+ "flate2",
+ "futures",
+ "reth-primitives",
+ "reth-rlp",
+ "serde",
+ "serde_json",
+ "tokio",
 ]
 
 [[package]]
