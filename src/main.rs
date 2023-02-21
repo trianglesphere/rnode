@@ -1,6 +1,9 @@
 #![allow(dead_code)]
 #![feature(hash_drain_filter)]
 #![feature(is_some_and)]
+#![feature(let_chains)]
+#![feature(associated_type_bounds)]
+#![feature(type_alias_impl_trait)]
 
 use dotenv::dotenv;
 use ethers_core::{
@@ -15,6 +18,30 @@ use std::{
 	collections::{HashMap, VecDeque},
 	str::FromStr,
 };
+
+// TODO: Should I be Iterator<Item = u8>>?
+struct ReadAdpater<I> {
+	inner: I,
+}
+
+// TODO: Should I be Iterator<Item = u8>>?
+impl<I> ReadAdpater<I> {
+	pub fn new(iter: I) -> Self {
+		Self { inner: iter }
+	}
+}
+
+impl<I: Iterator<Item = u8>> Read for ReadAdpater<I> {
+	fn read(&mut self, buf: &mut [u8]) -> std::io::Result<usize> {
+		let max = buf.len();
+		let mut i: usize = 0;
+		while i < max && let Some(b) = self.inner.next() {
+			buf[i] = b;
+			i +=1;
+		}
+		Ok(i)
+	}
+}
 
 /// The client module
 pub mod client;
@@ -33,17 +60,49 @@ struct Channel {
 	frames: HashMap<u16, Frame>,
 	id: H128,
 	size: u64,
-	highest_frame_number: u16,
-	end_frame_number: Option<u16>,
+	highest_frame: u16,
+	end_frame: Option<u16>,
 	lowest_l1_block: BlockID,
 	highest_l1_block: BlockID,
 }
+
+struct ChannelBankAdapter<'a, I> {
+	inner: I,
+	cb: &'a mut ChannelBank,
+	l1_block: BlockID,
+}
+
+impl<'a, I: Iterator<Item = Frame>> Iterator for ChannelBankAdapter<'a, I> {
+	type Item = Channel;
+
+	fn next(&mut self) -> Option<Self::Item> {
+		loop {
+			if let Some(ch) = self.cb.get_ready_channel() {
+				return Some(ch);
+			}
+			self.cb.load_frame(self.inner.next()?, self.l1_block);
+		}
+	}
+}
+
+impl<'a, I> ChannelBankAdapter<'a, I> {
+	pub fn new(iter: I, cb: &'a mut ChannelBank, l1_block: BlockID) -> Self {
+		Self { inner: iter, cb, l1_block }
+	}
+}
+
+trait ChannelBankAdapterIteratorExt<'a, I>: Iterator<Item = Frame> + Sized {
+	fn reassemble_channels(self, cb: &'a mut ChannelBank, l1_block: BlockID) -> ChannelBankAdapter<'a, Self> {
+		ChannelBankAdapter::new(self, cb, l1_block)
+	}
+}
+
+impl<'a, I: Iterator<Item = Frame>> ChannelBankAdapterIteratorExt<'a, I> for I {}
 
 #[derive(Default)]
 struct ChannelBank {
 	channels_map: HashMap<H128, Channel>,
 	channels_by_creation: VecDeque<H128>,
-	// TODO: Pruning
 }
 
 impl Channel {
@@ -52,42 +111,42 @@ impl Channel {
 			frames: HashMap::new(),
 			id,
 			size: 0,
-			highest_frame_number: 0,
-			end_frame_number: None,
+			highest_frame: 0,
+			end_frame: None,
 			lowest_l1_block: l1_block,
 			highest_l1_block: l1_block,
 		}
 	}
 
-	pub fn load_frame(&mut self, frame: Frame, l1_block: BlockID) {
+	pub fn add_frame(&mut self, frame: Frame, l1_block: BlockID) {
 		// These checks are specififed & cannot be changed without a HF
 		if self.id != frame.id
 			|| self.closed() && frame.is_last
 			|| self.frames.contains_key(&frame.number)
-			|| self.closed() && frame.number > self.highest_frame_number
+			|| self.closed() && frame.number > self.highest_frame
 		{
 			return;
 		}
 		// Will always succeed at this point
 		if frame.is_last {
-			self.end_frame_number = Some(frame.number);
+			self.end_frame = Some(frame.number);
 			// Prune higher frames if this is the closing frame
-			if frame.number > self.highest_frame_number {
+			if frame.number > self.highest_frame {
 				self.frames.drain_filter(|k, _| *k > frame.number).for_each(|(_, v)| {
 					self.size -= v.size();
 				});
-				self.highest_frame_number = frame.number
+				self.highest_frame = frame.number
 			}
 		}
 
-		self.highest_frame_number = max(self.highest_frame_number, frame.number);
+		self.highest_frame = max(self.highest_frame, frame.number);
 		self.highest_l1_block = max(self.highest_l1_block, l1_block);
 		self.size += frame.size();
 		self.frames.insert(frame.number, frame);
 	}
 
 	pub fn is_ready(&self) -> bool {
-		let last = match self.end_frame_number {
+		let last = match self.end_frame {
 			Some(n) => n,
 			None => return false,
 		};
@@ -95,14 +154,13 @@ impl Channel {
 	}
 
 	// data returns the channel data. It will panic if `is_ready` is false.
-	pub fn data(&mut self) -> Vec<u8> {
-		(0..=self.end_frame_number.unwrap())
-			.flat_map(|i| self.frames.remove(&i).unwrap().data)
-			.collect()
+	// This fully consumes the channel.
+	pub fn data(mut self) -> impl Iterator<Item = u8> {
+		(0..=self.end_frame.unwrap()).flat_map(move |i| self.frames.remove(&i).unwrap().data)
 	}
 
 	fn closed(&self) -> bool {
-		self.end_frame_number.is_some()
+		self.end_frame.is_some()
 	}
 
 	pub fn is_timed_out(&self) -> bool {
@@ -115,13 +173,6 @@ const MAX_CHANNEL_BANK_SIZE: u64 = 100_000_000;
 const CHANNEL_TIMEOUT: u64 = 100;
 
 impl ChannelBank {
-	pub fn load_frames(&mut self, frames: Vec<Frame>, l1_block: BlockID) {
-		for frame in frames {
-			// TODO: Technically we need to pull data first
-			self.load_frame(frame, l1_block)
-		}
-	}
-
 	fn load_frame(&mut self, frame: Frame, l1_block: BlockID) {
 		assert!(
 			!self.peek().is_some_and(|c| c.is_ready()),
@@ -134,15 +185,15 @@ impl ChannelBank {
 				self.channels_by_creation.push_back(frame.id);
 				Channel::new(frame.id, l1_block)
 			})
-			.load_frame(frame, l1_block);
+			.add_frame(frame, l1_block);
 		self.prune();
 	}
 
-	pub fn get_channel_data(&mut self) -> Option<Vec<u8>> {
+	pub fn get_ready_channel(&mut self) -> Option<Channel> {
 		if self.peek()?.is_ready() {
-			let mut ch = self.remove().unwrap();
+			let ch = self.remove().unwrap();
 			if !ch.is_timed_out() {
-				return Some(ch.data());
+				return Some(ch);
 			}
 		}
 		None
@@ -178,7 +229,7 @@ const L2_BLOCK_TIME: u64 = 2u64;
 const SEQ_WINDOW_SIZE: u64 = 3600u64;
 
 impl BatchQueue {
-	pub fn load_batches(&mut self, batches: Vec<Batch>, l1_origin: L1BlockRef) {
+	pub fn load_batches(&mut self, batches: impl Iterator<Item = Batch>, l1_origin: L1BlockRef) {
 		self.l1_blocks.push_back(l1_origin);
 		for b in batches {
 			println!("{b:?}");
@@ -208,19 +259,23 @@ impl BatchQueue {
 	}
 }
 
-fn channel_bytes_to_batches(data: Vec<u8>) -> Vec<Batch> {
-	let mut decomp = ZlibDecoder::new(&data[..]);
+fn decompress(r: impl Read) -> Vec<u8> {
+	let mut decomp = ZlibDecoder::new(r);
 	let mut buffer = Vec::default();
 
 	// TODO: Handle this error
 	// Decompress the passed data with zlib
 	decomp.read_to_end(&mut buffer).unwrap();
-	let mut buf: &[u8] = &buffer;
+	buffer
+}
 
+fn parse_batches(data: Vec<u8>) -> Vec<Batch> {
 	// TODO: Truncate data to 10KB (post compression)
 	// The data we received is an RLP encoded string. Before decoding the batch itself,
 	// we need to decode the string to get the actual batch data.
 	let mut decoded_batches: Vec<Vec<u8>> = Vec::new();
+	let mut buf: &[u8] = &data;
+
 	loop {
 		let rlp = Rlp::new(buf);
 		let size = rlp.size();
@@ -234,18 +289,7 @@ fn channel_bytes_to_batches(data: Vec<u8>) -> Vec<Batch> {
 		}
 	}
 	// dbg!(decoded_batches);
-
-	decoded_batches.iter().map(|b| decode(b)).filter_map(|b| b.ok()).collect()
-}
-
-fn frames_from_transactions(transactions: Vec<Transaction>) -> Vec<Frame> {
-	let batcher_address = Address::from_str("0x7431310e026B69BFC676C0013E12A1A11411EEc9").unwrap();
-
-	transactions
-		.iter()
-		.filter(|tx| tx.from == batcher_address)
-		.flat_map(|tx| parse_frames(&tx.input))
-		.collect()
+	decoded_batches.iter().filter_map(|b| decode(b).ok()).collect()
 }
 
 #[derive(Default)]
@@ -256,13 +300,18 @@ struct Derivation {
 
 impl Derivation {
 	pub fn load_l1_data(&mut self, l1_block: L1BlockRef, transactions: Vec<Transaction>, _receipts: Vec<TransactionReceipt>) {
-		let frames = frames_from_transactions(transactions);
-		self.channel_bank.load_frames(frames, l1_block.into());
-		let mut batches = Vec::new();
-		while let Some(data) = self.channel_bank.get_channel_data() {
-			let mut b = channel_bytes_to_batches(data);
-			batches.append(&mut b);
-		}
+		// TODO: Create system config from the receipts
+		let batcher_address = Address::from_str("0x7431310e026B69BFC676C0013E12A1A11411EEc9").unwrap();
+
+		let batches = transactions
+			.into_iter()
+			.filter(move |tx| tx.from == batcher_address)
+			.flat_map(|tx| parse_frames(&tx.input))
+			.reassemble_channels(&mut self.channel_bank, l1_block.into())
+			.map(|c| c.data())
+			.map(ReadAdpater::new)
+			.map(decompress)
+			.flat_map(parse_batches);
 		self.batch_queue.load_batches(batches, l1_block);
 	}
 
