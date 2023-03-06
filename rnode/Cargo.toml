@@ -1,0 +1,13 @@
+[package]
+name = "rnode"
+version = "0.1.0"
+edition = "2021"
+
+
+[dependencies]
+client = {path = "../crates/client"}
+core = {path = "../crates/core"}
+derivation = {path = "../crates/derivation"}
+
+eyre = "0.6.8"
+dotenv = "0.15.0"

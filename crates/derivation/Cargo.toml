@@ -1,0 +1,10 @@
+[package]
+name = "derivation"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+core = {path = "../core"}
+ethers-core = "1.0.2"
+eyre = "0.6.8"
+flate2 = "1.0.25"
