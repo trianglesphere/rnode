@@ -8,6 +8,9 @@ edition = "2021"
 client = {path = "../crates/client"}
 core = {path = "../crates/core"}
 derivation = {path = "../crates/derivation"}
+mpt = {path = "../crates/mpt"}
 
 eyre = "0.6.8"
 dotenv = "0.15.0"
+reth-rlp = { git = "https://github.com/paradigmxyz/reth", features = ["derive"] }
+
