@@ -1255,7 +1255,7 @@ name = "mpt"
 version = "0.1.0"
 dependencies = [
  "core",
- "ethers-core 1.0.2 (registry+https://github.com/rust-lang/crates.io-index)",
+ "reth-primitives",
  "reth-rlp",
 ]
 

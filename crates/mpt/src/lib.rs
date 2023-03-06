@@ -1,6 +1,7 @@
 use core::types::H256;
-use reth_rlp::Encodable;
-use std::{collections::HashMap, fmt::Debug, iter::zip};
+use reth_primitives::keccak256;
+// use reth_rlp::Encodable;
+use std::{collections::HashMap, fmt::Debug, iter::zip, str::FromStr};
 
 #[cfg(test)]
 mod mpt_test;
@@ -21,12 +22,17 @@ enum Node {
 
 struct ValueNode {
 	value: Vec<u8>,
-	hash: Option<H256>,
+	hash: H256,
 }
 
 impl ValueNode {
 	fn new(value: Vec<u8>) -> Self {
-		Self { value, hash: None }
+		let hash = keccak256(&value);
+		Self { value, hash }
+	}
+	fn hash(&self, db: &mut HashMap<H256, Vec<u8>>) -> H256 {
+		db.insert(self.hash, self.value.to_owned());
+		self.hash
 	}
 }
 
@@ -61,6 +67,20 @@ impl ExtensionNode {
 			nibbles,
 			child: Box::new(child),
 			hash: None,
+		}
+	}
+	fn hash(&self, db: &mut HashMap<H256, Vec<u8>>) -> H256 {
+		if let Some(hash) = self.hash {
+			hash
+		} else {
+			let mut list = Vec::new();
+			let mut bytes = Vec::new();
+			list.push(self.compact());
+			list.push(self.child.hash(db).to_vec());
+			reth_rlp::encode_list::<Vec<u8>, _>(&list, &mut bytes);
+			let hash = keccak256(&bytes);
+			db.insert(hash, bytes);
+			hash
 		}
 	}
 }
@@ -128,6 +148,26 @@ impl BranchNode {
 		let mut branch_node = BranchNode::default();
 		branch_node.branch_value = Some(value);
 		branch_node
+	}
+
+	fn hash(&self, db: &mut HashMap<H256, Vec<u8>>) -> H256 {
+		if let Some(hash) = self.hash {
+			hash
+		} else {
+			let mut list = Vec::new();
+			let mut bytes = Vec::new();
+			for child in self.children.iter() {
+				list.push(child.hash(db).to_vec());
+			}
+			match &self.branch_value {
+				Some(value) => list.push(value.hash(db).to_vec()),
+				None => list.push(vec![]),
+			}
+			reth_rlp::encode_list::<Vec<u8>, _>(&list, &mut bytes);
+			let hash = keccak256(&bytes);
+			db.insert(hash, bytes);
+			hash
+		}
 	}
 }
 
@@ -206,8 +246,13 @@ impl Node {
 		}
 	}
 
-	fn hash(&self) -> H256 {
-		todo!()
+	fn hash(&self, db: &mut HashMap<H256, Vec<u8>>) -> H256 {
+		match self {
+			Node::Empty => H256::from_str("5cb9337683145a552205d867a90630e69e5e67656014d1cdb38a6faec321e997").unwrap(),
+			Node::Branch(node) => node.hash(db),
+			Node::Extension(node) => node.hash(db),
+			Node::Value(node) => node.hash(db),
+		}
 	}
 }
 
@@ -231,8 +276,10 @@ impl MPT {
 			db: HashMap::default(),
 		}
 	}
-	pub fn hash(&self) -> H256 {
-		todo!()
+	pub fn hash(&mut self) -> H256 {
+		self.root.hash(&mut self.db);
+		dbg!(&self.db);
+		self.root.hash(&mut self.db)
 	}
 
 	pub fn insert(&mut self, k: Vec<u8>, v: Vec<u8>) {
