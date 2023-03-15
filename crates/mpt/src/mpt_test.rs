@@ -92,5 +92,53 @@ fn test_mpt_insert() {
 	mpt.insert("doge".into(), "coin".into());
 	mpt.insert("horse".into(), "stallion".into());
 	dbg!(mpt);
-	assert!(false, "print MPT");
+	// assert!(false, "print MPT");
+}
+
+/*
+// go 1.19
+// require github.com/ethereum/go-ethereum v1.11.2
+package main
+
+import (
+	"fmt"
+
+	"github.com/ethereum/go-ethereum/trie"
+	"github.com/ethereum/go-ethereum/core/rawdb"
+)
+
+func main() {
+	// ('do', 'verb'), ('dog', 'puppy'), ('doge', 'coin'), ('horse', 'stallion').
+	t := trie.NewEmpty(trie.NewDatabase(rawdb.NewMemoryDatabase()))
+	t.Update([]byte("do"), []byte("verb"))
+	t.Update([]byte("dog"), []byte("puppy"))
+	t.Update([]byte("doge"), []byte("coin"))
+	t.Update([]byte("horse"), []byte("stallion"))
+	fmt.Println(t.Hash())
+}
+*/
+#[test]
+fn test_mpt_hash() {
+	let mut mpt = MPT::new();
+
+	mpt.insert("do".into(), "verb".into());
+	let hash = mpt.hash();
+	let expected_hash = H256::from_str("0x014f07ed95e2e028804d915e0dbd4ed451e394e1acfd29e463c11a060b2ddef7").unwrap();
+	assert_eq!(expected_hash, hash);
+
+	mpt.insert("dog".into(), "puppy".into());
+	let hash = mpt.hash();
+	let expected_hash = H256::from_str("0x779db3986dd4f38416bfde49750ef7b13c6ecb3e2221620bcad9267e94604d36").unwrap();
+	dbg!(mpt);
+	assert_eq!(expected_hash, hash);
+
+	// mpt.insert("doge".into(), "coin".into());
+	// let hash = mpt.hash();
+	// let expected_hash = H256::from_str("0xef7b2fe20f5d2c30c46ad4d83c39811bcbf1721aef2e805c0e107947320888b6").unwrap();
+	// assert_eq!(expected_hash, hash);
+
+	// mpt.insert("horse".into(), "stallion".into());
+	// let hash = mpt.hash();
+	// let expected_hash = H256::from_str("0x5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84").unwrap();
+	// assert_eq!(expected_hash, hash);
 }
