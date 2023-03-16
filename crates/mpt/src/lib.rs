@@ -1,11 +1,10 @@
 use core::types::H256;
 use reth_primitives::{keccak256, Bytes};
-use std::{collections::HashMap, fmt::Debug, iter::zip, str::FromStr};
+use std::{collections::HashMap, fmt::Debug, iter::zip};
 
 #[cfg(test)]
 mod mpt_test;
 
-#[derive(Debug)]
 pub struct MPT {
 	root: Node,
 	db: HashMap<H256, Vec<u8>>,
@@ -19,11 +18,11 @@ impl MPT {
 		}
 	}
 	pub fn hash(&mut self) -> H256 {
-		let hash = self.root.hash(&mut self.db);
-		if hash.len() < 32 {
-			keccak256(hash)
+		let root = self.root.rlp_bytes(&mut self.db);
+		if root.len() < 32 {
+			keccak256(root)
 		} else {
-			H256::from_slice(&hash[..32])
+			H256::from_slice(&root[..32])
 		}
 	}
 
@@ -31,6 +30,16 @@ impl MPT {
 		let k = bytes_to_nibbles(&k);
 		let root = std::mem::take(&mut self.root);
 		self.root = root.insert(&k, v);
+	}
+}
+
+impl Debug for MPT {
+	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+		f.write_fmt(format_args!("root: {:#?}\n", &self.root))?;
+		for (k, v) in self.db.iter() {
+			f.write_fmt(format_args!("{k:?}\t0x{}\n", hex::encode(v)))?;
+		}
+		Ok(())
 	}
 }
 
@@ -94,14 +103,12 @@ impl Node {
 		}
 	}
 
-	fn hash(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
 		match self {
-			Node::Empty => H256::from_str("5cb9337683145a552205d867a90630e69e5e67656014d1cdb38a6faec321e997")
-				.unwrap()
-				.to_vec(),
-			Node::Branch(node) => node.hash(db),
-			Node::Extension(node) => node.hash(db),
-			Node::Value(node) => node.hash(db),
+			Node::Empty => Vec::default(),
+			Node::Branch(node) => node.rlp_bytes(db),
+			Node::Extension(node) => node.rlp_bytes(db),
+			Node::Value(node) => node.rlp_bytes(db),
 		}
 	}
 }
@@ -114,21 +121,14 @@ impl Default for Node {
 
 struct ValueNode {
 	value: Vec<u8>,
-	hash: H256,
 }
 
 impl ValueNode {
 	fn new(value: Vec<u8>) -> Self {
-		let hash = keccak256(&value);
-		Self { value, hash }
+		Self { value }
 	}
-	fn hash(&self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
-		db.insert(self.hash, self.value.to_owned());
-		if self.value.len() < 32 {
-			self.value.to_owned()
-		} else {
-			self.hash.to_vec()
-		}
+	fn rlp_bytes(&self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+		mpt_hash(&self.value, db)
 	}
 }
 
@@ -146,8 +146,8 @@ impl From<ValueNode> for Node {
 
 impl Debug for ValueNode {
 	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!("{:x?}\n", &self.value))?;
-		f.write_fmt(format_args!("hash: {:#?}", self.hash))
+		f.write_fmt(format_args!("{:x?}", &self.value))?;
+		Ok(())
 	}
 }
 
@@ -174,22 +174,17 @@ impl ExtensionNode {
 		nibbles_to_compact(&self.nibbles, extension)
 	}
 
-	fn hash(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
 		let mut list: Vec<Bytes> = Vec::new();
 		let mut bytes = Vec::new();
 
 		list.push(self.compact().into());
-		list.push(self.child.hash(db).into());
+		list.push(self.child.rlp_bytes(db).into());
 		reth_rlp::encode_list::<Bytes, _>(&list, &mut bytes);
 
-		let hash = keccak256(&bytes);
+		let hash = mpt_hash(&bytes, db);
 		println!("{hash:?}: {:x?}", bytes);
-		db.insert(hash, bytes.to_owned());
-		if bytes.len() < 32 {
-			bytes
-		} else {
-			hash.to_vec()
-		}
+		hash
 	}
 }
 
@@ -245,27 +240,22 @@ impl BranchNode {
 		branch_node
 	}
 
-	fn hash(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
 		let mut list: Vec<Bytes> = Vec::new();
 		let mut bytes = Vec::new();
 
 		for child in self.children.iter_mut() {
-			list.push(child.hash(db).into());
+			list.push(child.rlp_bytes(db).into());
 		}
 		match &self.branch_value {
-			Some(value) => list.push(value.hash(db).into()),
+			Some(value) => list.push(value.rlp_bytes(db).into()),
 			None => list.push(Bytes::default()),
 		}
 		reth_rlp::encode_list::<Bytes, _>(&list, &mut bytes);
 
-		let hash = keccak256(&bytes);
+		let hash = mpt_hash(&bytes, db);
 		println!("{hash:?}: {:x?}", bytes);
-		db.insert(hash, bytes.to_owned());
-		if bytes.len() < 32 {
-			bytes
-		} else {
-			hash.to_vec()
-		}
+		hash
 	}
 }
 
@@ -286,6 +276,19 @@ impl Debug for BranchNode {
 	}
 }
 
+// mpt_hash implements H(x) as used in the MPT.
+fn mpt_hash(x: &[u8], db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+	// let x = format!("0x{}", hex::encode(x));
+	// let x = x.as_bytes();
+	if x.len() < 32 {
+		x.to_vec()
+	} else {
+		let h = keccak256(&x);
+		db.insert(h, x.to_vec());
+		h.as_bytes().into()
+	}
+}
+
 // match_paths is a helper function that returns the shared bytes between a & b as well
 // the remaining bytes in a & b.
 fn match_paths<'a, 'b>(key: &'a [u8], path: &'b [u8]) -> (Vec<u8>, &'a [u8], &'b [u8]) {
@@ -302,7 +305,7 @@ fn match_paths<'a, 'b>(key: &'a [u8], path: &'b [u8]) -> (Vec<u8>, &'a [u8], &'b
 }
 
 // bytes_to_nibbles splits a list of bytes into a list of nibbles
-pub fn bytes_to_nibbles(key: &[u8]) -> Vec<u8> {
+fn bytes_to_nibbles(key: &[u8]) -> Vec<u8> {
 	let mut out = Vec::new();
 	for byte in key {
 		out.push(byte >> 4);
@@ -314,7 +317,7 @@ pub fn bytes_to_nibbles(key: &[u8]) -> Vec<u8> {
 // nibbles_to_compact turns a list of nibbles into Ethereum's compact encoding scheme.
 // It prefixes the parity of the nibbles length & if it's an extension into the first nibble
 // and then folds the nibbles into bytes.
-pub fn nibbles_to_compact(nibbles: &[u8], extension: bool) -> Vec<u8> {
+fn nibbles_to_compact(nibbles: &[u8], extension: bool) -> Vec<u8> {
 	let mut key = nibbles;
 	let mut out = Vec::new();
 	let even = key.len() % 2 == 0;

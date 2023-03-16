@@ -1,9 +1,18 @@
 use crate::*;
+use std::str::FromStr;
 
 struct NibblesCompactTestCase {
 	nibbles: Vec<u8>,
 	compact: Vec<u8>,
 	extension: bool,
+}
+
+#[test]
+fn test_empty_hash() {
+	//  Encode [] with RLP then turn to a hex string
+	let got = keccak256("0xc0".as_bytes());
+	let expected = H256::from_str("5cb9337683145a552205d867a90630e69e5e67656014d1cdb38a6faec321e997").unwrap();
+	assert_eq!(got, expected);
 }
 
 #[test]
@@ -135,6 +144,7 @@ fn test_mpt_hash() {
 	// mpt.insert("doge".into(), "coin".into());
 	// let hash = mpt.hash();
 	// let expected_hash = H256::from_str("0xef7b2fe20f5d2c30c46ad4d83c39811bcbf1721aef2e805c0e107947320888b6").unwrap();
+	// dbg!(mpt);
 	// assert_eq!(expected_hash, hash);
 
 	// mpt.insert("horse".into(), "stallion".into());
