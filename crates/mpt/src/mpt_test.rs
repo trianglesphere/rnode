@@ -138,14 +138,13 @@ fn test_mpt_hash() {
 	mpt.insert("dog".into(), "puppy".into());
 	let hash = mpt.hash();
 	let expected_hash = H256::from_str("0x779db3986dd4f38416bfde49750ef7b13c6ecb3e2221620bcad9267e94604d36").unwrap();
-	dbg!(mpt);
 	assert_eq!(expected_hash, hash);
 
-	// mpt.insert("doge".into(), "coin".into());
-	// let hash = mpt.hash();
-	// let expected_hash = H256::from_str("0xef7b2fe20f5d2c30c46ad4d83c39811bcbf1721aef2e805c0e107947320888b6").unwrap();
-	// dbg!(mpt);
-	// assert_eq!(expected_hash, hash);
+	mpt.insert("doge".into(), "coin".into());
+	let hash = mpt.hash();
+	let expected_hash = H256::from_str("0xef7b2fe20f5d2c30c46ad4d83c39811bcbf1721aef2e805c0e107947320888b6").unwrap();
+	dbg!(mpt);
+	assert_eq!(expected_hash, hash);
 
 	// mpt.insert("horse".into(), "stallion".into());
 	// let hash = mpt.hash();
