@@ -19,7 +19,8 @@ impl MPT {
 		}
 	}
 	pub fn hash(&mut self) -> H256 {
-		let root = self.root.rlp_bytes(&mut self.db);
+		self.db = HashMap::default();
+		let root = self.root.rlp_bytes(&mut self.db).value();
 		println!("{}", hex::encode(&root));
 		if root.len() < 32 {
 			keccak256(root)
@@ -105,9 +106,9 @@ impl Node {
 		}
 	}
 
-	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapper {
 		match self {
-			Node::Empty => vec![0x80],
+			Node::Empty => RLPEncodeableWrapper::Raw(vec![0x80]),
 			Node::Branch(node) => node.rlp_bytes(db),
 			Node::Extension(node) => node.rlp_bytes(db),
 			Node::Value(node) => node.rlp_bytes(db),
@@ -129,11 +130,11 @@ impl ValueNode {
 	fn new(value: Vec<u8>) -> Self {
 		Self { value }
 	}
-	fn rlp_bytes(&self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
-		let h = mpt_hash(&self.value, db);
+	fn rlp_bytes(&self, db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapper {
 		let mut out = Vec::new();
-		Bytes::from(h).encode(&mut out);
-		out
+		let value: Bytes = self.value.clone().into();
+		value.encode(&mut out);
+		mpt_hash(&out, db)
 	}
 }
 
@@ -179,12 +180,12 @@ impl ExtensionNode {
 		nibbles_to_compact(&self.nibbles, extension)
 	}
 
-	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapper {
 		let mut list: Vec<RLPEncodeableWrapper> = Vec::new();
 		let mut bytes = Vec::new();
 
-		list.push(RLPEncodeableWrapper::String(self.compact()));
-		list.push(RLPEncodeableWrapper::Raw(self.child.rlp_bytes(db)));
+		list.push(RLPEncodeableWrapper::Bytes(self.compact().into()));
+		list.push(self.child.rlp_bytes(db));
 		reth_rlp::encode_list(&list, &mut bytes);
 
 		let hash = mpt_hash(&bytes, db);
@@ -245,16 +246,16 @@ impl BranchNode {
 		branch_node
 	}
 
-	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapper {
 		let mut list: Vec<RLPEncodeableWrapper> = Vec::new();
 		let mut bytes = Vec::new();
 
 		for child in self.children.iter_mut() {
-			list.push(RLPEncodeableWrapper::Raw(child.rlp_bytes(db)));
+			list.push(child.rlp_bytes(db));
 		}
 		match &self.branch_value {
-			Some(value) => list.push(RLPEncodeableWrapper::Raw(value.rlp_bytes(db))),
-			None => list.push(RLPEncodeableWrapper::String(Vec::default())),
+			Some(value) => list.push(value.rlp_bytes(db)),
+			None => list.push(RLPEncodeableWrapper::Raw(vec![0x80])),
 		}
 		reth_rlp::encode_list(&list, &mut bytes);
 
@@ -281,30 +282,46 @@ impl Debug for BranchNode {
 	}
 }
 
+#[derive(Debug)]
 enum RLPEncodeableWrapper {
-	String(Vec<u8>),
+	Bytes(Bytes),
 	Raw(Vec<u8>),
 }
+
+// impl From<Bytes> for RLPEncodeableWrapper {
+// 	fn from(value: Bytes) -> Self {
+// 		RLPEncodeableWrapper::Bytes(value)
+// 	}
+// }
 
 impl Encodable for RLPEncodeableWrapper {
 	fn encode(&self, out: &mut dyn reth_rlp::BufMut) {
 		match self {
-			Self::String(value) => Bytes::from(value.clone()).encode(out),
+			Self::Bytes(value) => value.encode(out),
 			Self::Raw(value) => out.put_slice(value),
 		}
 	}
 }
 
+impl RLPEncodeableWrapper {
+	fn value(&self) -> Vec<u8> {
+		match self {
+			Self::Bytes(value) => value.to_vec(),
+			Self::Raw(value) => value.clone(),
+		}
+	}
+}
+
 // mpt_hash implements H(x) as used in the MPT.
-fn mpt_hash(x: &[u8], db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+fn mpt_hash(x: &[u8], db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapper {
 	// let x = format!("0x{}", hex::encode(x));
 	// let x = x.as_bytes();
 	if x.len() < 32 {
-		x.to_vec()
+		RLPEncodeableWrapper::Raw(x.to_vec())
 	} else {
 		let h = keccak256(&x);
 		db.insert(h, x.to_vec());
-		h.as_bytes().into()
+		RLPEncodeableWrapper::Bytes(h.to_vec().into())
 	}
 }
 
