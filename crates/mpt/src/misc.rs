@@ -6,7 +6,7 @@ use std::{collections::HashMap, fmt::Debug, iter::zip};
 #[derive(Debug)]
 pub enum RLPEncodeableWrapper {
 	EmptyString,
-	Bytes(Bytes),
+	Bytes(Vec<u8>),
 	Raw(Vec<u8>),
 }
 
@@ -14,20 +14,18 @@ impl Encodable for RLPEncodeableWrapper {
 	fn encode(&self, out: &mut dyn reth_rlp::BufMut) {
 		match self {
 			Self::EmptyString => out.put_u8(0x80),
-			Self::Bytes(value) => value.encode(out),
+			Self::Bytes(value) => out.put_slice(&encode_bytes(value.clone())),
 			Self::Raw(value) => out.put_slice(value),
 		}
 	}
 }
 
-impl RLPEncodeableWrapper {
-	pub fn value(&self) -> Vec<u8> {
-		match self {
-			Self::EmptyString => vec![],
-			Self::Bytes(value) => value.to_vec(),
-			Self::Raw(value) => value.clone(),
-		}
-	}
+// encode_bytes encodes a vec<u8> as a byte string instead of a list of u8s.
+pub fn encode_bytes(x: Vec<u8>) -> Vec<u8> {
+	let mut out = Vec::new();
+	let b: Bytes = x.into();
+	b.encode(&mut out);
+	out
 }
 
 // mpt_hash implements H(x) as used in the MPT.
@@ -39,7 +37,7 @@ pub fn mpt_hash(x: &[u8], db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapp
 	} else {
 		let h = keccak256(&x);
 		db.insert(h, x.to_vec());
-		RLPEncodeableWrapper::Bytes(h.to_vec().into())
+		RLPEncodeableWrapper::Bytes(h.to_vec())
 	}
 }
 
