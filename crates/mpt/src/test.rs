@@ -8,14 +8,6 @@ struct NibblesCompactTestCase {
 }
 
 #[test]
-fn test_empty_hash() {
-	//  Encode [] with RLP then turn to a hex string
-	let got = keccak256("0xc0".as_bytes());
-	let expected = H256::from_str("5cb9337683145a552205d867a90630e69e5e67656014d1cdb38a6faec321e997").unwrap();
-	assert_eq!(got, expected);
-}
-
-#[test]
 fn test_nibbles_compact_conversions() {
 	let tests = vec![
 		NibblesCompactTestCase {
@@ -77,6 +69,14 @@ fn test_nibbles_compact_conversions() {
 		assert_eq!(test.nibbles, actual_nibbles);
 		assert_eq!(test.extension, actual_ext);
 	}
+}
+
+#[test]
+fn test_empty_root_hash() {
+	let mut mpt = MPT::new();
+	let hash = mpt.hash();
+	let expected = H256::from_str("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").unwrap();
+	assert_eq!(hash, expected);
 }
 
 // Test MPT from https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/

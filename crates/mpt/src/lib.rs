@@ -9,6 +9,7 @@ mod test;
 mod display;
 mod misc;
 
+#[derive(Default)]
 pub struct MPT {
 	root: Node,
 	db: HashMap<H256, Vec<u8>>,
@@ -16,11 +17,9 @@ pub struct MPT {
 
 impl MPT {
 	pub fn new() -> Self {
-		MPT {
-			root: Node::Empty,
-			db: HashMap::default(),
-		}
+		Self::default()
 	}
+
 	pub fn hash(&mut self) -> H256 {
 		self.db = HashMap::default();
 		let root_bytes = self.root.rlp_bytes(&mut self.db);
