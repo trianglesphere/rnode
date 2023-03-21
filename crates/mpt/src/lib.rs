@@ -1,10 +1,14 @@
+use crate::misc::*;
 use core::types::H256;
 use reth_primitives::{keccak256, Bytes};
 use reth_rlp::Encodable;
-use std::{collections::HashMap, fmt::Debug, iter::zip};
+use std::{collections::HashMap, fmt::Debug};
 
 #[cfg(test)]
-mod mpt_test;
+mod test;
+
+mod display;
+mod misc;
 
 pub struct MPT {
 	root: Node,
@@ -33,16 +37,6 @@ impl MPT {
 		let k = bytes_to_nibbles(&k);
 		let root = std::mem::take(&mut self.root);
 		self.root = root.insert(&k, v);
-	}
-}
-
-impl Debug for MPT {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!("root: {:#?}\n", &self.root))?;
-		for (k, v) in self.db.iter() {
-			f.write_fmt(format_args!("{k:?}\t0x{}\n", hex::encode(v)))?;
-		}
-		Ok(())
 	}
 }
 
@@ -122,93 +116,6 @@ impl Default for Node {
 	}
 }
 
-struct ValueNode {
-	value: Vec<u8>,
-}
-
-impl ValueNode {
-	fn new(value: Vec<u8>) -> Self {
-		Self { value }
-	}
-	fn rlp_bytes(&self, db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapper {
-		let mut out = Vec::new();
-		let value: Bytes = self.value.clone().into();
-		value.encode(&mut out);
-		mpt_hash(&out, db)
-	}
-}
-
-impl From<Vec<u8>> for ValueNode {
-	fn from(value: Vec<u8>) -> Self {
-		ValueNode::new(value)
-	}
-}
-
-impl From<ValueNode> for Node {
-	fn from(value: ValueNode) -> Self {
-		Node::Value(value)
-	}
-}
-
-impl Debug for ValueNode {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!("{:x?}", &self.value))?;
-		Ok(())
-	}
-}
-
-struct ExtensionNode {
-	nibbles: Vec<u8>,
-	child: Box<Node>,
-}
-
-impl ExtensionNode {
-	fn new(nibbles: Vec<u8>, child: Node) -> Self {
-		Self {
-			nibbles,
-			child: Box::new(child),
-		}
-	}
-
-	fn compact(&self) -> Vec<u8> {
-		let extension = match *self.child {
-			Node::Empty => panic!("Cannot point to an empty node in an extension"),
-			Node::Extension(..) => panic!("Cannot point to an extension node in an extension node"),
-			Node::Value(..) => false,
-			Node::Branch(..) => true,
-		};
-		nibbles_to_compact(&self.nibbles, extension)
-	}
-
-	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapper {
-		let mut list: Vec<RLPEncodeableWrapper> = Vec::new();
-		let mut bytes = Vec::new();
-
-		list.push(RLPEncodeableWrapper::Bytes(self.compact().into()));
-		list.push(self.child.rlp_bytes(db));
-		reth_rlp::encode_list(&list, &mut bytes);
-
-		let hash = mpt_hash(&bytes, db);
-		println!("{hash:?}: {:x?}", bytes);
-		hash
-	}
-}
-
-impl From<ExtensionNode> for Node {
-	fn from(value: ExtensionNode) -> Self {
-		Node::Extension(value)
-	}
-}
-
-impl Debug for ExtensionNode {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		f.write_fmt(format_args!("nibbles: {:x?}\n", &self.nibbles))?;
-		f.write_fmt(format_args!("compact: {:x?}\n", self.compact()))?;
-		f.write_fmt(format_args!("child: {:#?}", self.child))?;
-		Ok(())
-	}
-}
-
 #[derive(Default)]
 struct BranchNode {
 	children: [Box<Node>; 16],
@@ -271,126 +178,73 @@ impl From<BranchNode> for Node {
 	}
 }
 
-impl Debug for BranchNode {
-	fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-		// TODO: Use f.alternate()
-		for (i, v) in self.children.iter().enumerate() {
-			f.write_fmt(format_args!("{i:x}: {:#?}\n", v))?;
-		}
-		f.write_fmt(format_args!("value: {:#?}", self.branch_value))?;
-		Ok(())
-	}
+struct ExtensionNode {
+	nibbles: Vec<u8>,
+	child: Box<Node>,
 }
 
-#[derive(Debug)]
-enum RLPEncodeableWrapper {
-	Bytes(Bytes),
-	Raw(Vec<u8>),
-}
-
-// impl From<Bytes> for RLPEncodeableWrapper {
-// 	fn from(value: Bytes) -> Self {
-// 		RLPEncodeableWrapper::Bytes(value)
-// 	}
-// }
-
-impl Encodable for RLPEncodeableWrapper {
-	fn encode(&self, out: &mut dyn reth_rlp::BufMut) {
-		match self {
-			Self::Bytes(value) => value.encode(out),
-			Self::Raw(value) => out.put_slice(value),
+impl ExtensionNode {
+	fn new(nibbles: Vec<u8>, child: Node) -> Self {
+		Self {
+			nibbles,
+			child: Box::new(child),
 		}
 	}
+
+	fn compact(&self) -> Vec<u8> {
+		let extension = match *self.child {
+			Node::Empty => panic!("Cannot point to an empty node in an extension"),
+			Node::Extension(..) => panic!("Cannot point to an extension node in an extension node"),
+			Node::Value(..) => false,
+			Node::Branch(..) => true,
+		};
+		nibbles_to_compact(&self.nibbles, extension)
+	}
+
+	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapper {
+		let mut list: Vec<RLPEncodeableWrapper> = Vec::new();
+		let mut bytes = Vec::new();
+
+		list.push(RLPEncodeableWrapper::Bytes(self.compact().into()));
+		list.push(self.child.rlp_bytes(db));
+		reth_rlp::encode_list(&list, &mut bytes);
+
+		let hash = mpt_hash(&bytes, db);
+		println!("{hash:?}: {:x?}", bytes);
+		hash
+	}
 }
 
-impl RLPEncodeableWrapper {
-	fn value(&self) -> Vec<u8> {
-		match self {
-			Self::Bytes(value) => value.to_vec(),
-			Self::Raw(value) => value.clone(),
-		}
+impl From<ExtensionNode> for Node {
+	fn from(value: ExtensionNode) -> Self {
+		Node::Extension(value)
 	}
 }
 
-// mpt_hash implements H(x) as used in the MPT.
-fn mpt_hash(x: &[u8], db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapper {
-	// let x = format!("0x{}", hex::encode(x));
-	// let x = x.as_bytes();
-	if x.len() < 32 {
-		RLPEncodeableWrapper::Raw(x.to_vec())
-	} else {
-		let h = keccak256(&x);
-		db.insert(h, x.to_vec());
-		RLPEncodeableWrapper::Bytes(h.to_vec().into())
+struct ValueNode {
+	value: Vec<u8>,
+}
+
+impl ValueNode {
+	fn new(value: Vec<u8>) -> Self {
+		Self { value }
+	}
+	fn rlp_bytes(&self, db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapper {
+		let mut out = Vec::new();
+		let value: Bytes = self.value.clone().into();
+		value.encode(&mut out);
+		mpt_hash(&out, db)
 	}
 }
 
-// match_paths is a helper function that returns the shared bytes between a & b as well
-// the remaining bytes in a & b.
-fn match_paths<'a, 'b>(key: &'a [u8], path: &'b [u8]) -> (Vec<u8>, &'a [u8], &'b [u8]) {
-	let mut common = Vec::new();
-	for (a, b) in zip(key, path) {
-		if a == b {
-			common.push(*a)
-		} else {
-			break;
-		}
+impl From<Vec<u8>> for ValueNode {
+	fn from(value: Vec<u8>) -> Self {
+		ValueNode::new(value)
 	}
-	let i = common.len();
-	(common, &key[i..], &path[i..])
 }
 
-// bytes_to_nibbles splits a list of bytes into a list of nibbles
-fn bytes_to_nibbles(key: &[u8]) -> Vec<u8> {
-	let mut out = Vec::new();
-	for byte in key {
-		out.push(byte >> 4);
-		out.push(byte & 0x0f);
+impl From<ValueNode> for Node {
+	fn from(value: ValueNode) -> Self {
+		Node::Value(value)
 	}
-	out
-}
-
-// nibbles_to_compact turns a list of nibbles into Ethereum's compact encoding scheme.
-// It prefixes the parity of the nibbles length & if it's an extension into the first nibble
-// and then folds the nibbles into bytes.
-fn nibbles_to_compact(nibbles: &[u8], extension: bool) -> Vec<u8> {
-	let mut key = nibbles;
-	let mut out = Vec::new();
-	let even = key.len() % 2 == 0;
-	let mut first = match (extension, even) {
-		(true, true) => 0,
-		(true, false) => 1,
-		(false, true) => 2,
-		(false, false) => 3,
-	} << 4;
-	if !key.is_empty() && !even {
-		first = first | key[0];
-		key = &key[1..];
-	}
-	out.push(first);
-	for a in key.chunks_exact(2) {
-		out.push(a[0] << 4 | a[1]);
-	}
-	out
-}
-
-// compact_to_nibbles decodes Ethereum's compact encoding into the original nibbles
-// array and also returns if the path was an extension or not.
-pub fn compact_to_nibbles(compact: &[u8]) -> (Vec<u8>, bool) {
-	let (extension, even) = match compact[0] >> 4 {
-		0 => (true, true),
-		1 => (true, false),
-		2 => (false, true),
-		3 => (false, false),
-		_ => panic!("out of range"),
-	};
-	let mut nibbles = Vec::new();
-	if !even {
-		nibbles.push(compact[0] & 0x0f);
-	}
-	for b in &compact[1..] {
-		nibbles.push(b >> 4);
-		nibbles.push(b & 0x0f);
-	}
-	(nibbles, extension)
 }
