@@ -56,11 +56,11 @@ impl Node {
 	fn insert(self, nibbles: &[u8], value: Vec<u8>) -> Self {
 		match self {
 			Node::Empty => Node::new(nibbles, Node::new_value(value)),
-			Node::Branch(node) => node.insert(nibbles, value).unwrap().into(),
+			Node::Branch(node) => node.insert(nibbles, value).into(),
 			Node::Extension(node) => {
 				let (common, new_nibbles, old_nibbles) = match_paths(nibbles, &node.nibbles);
 				if new_nibbles.is_empty() && old_nibbles.is_empty() {
-					panic!("Paths cannot be the same");
+					return node.child.insert(nibbles, value);
 				}
 				// Inserting here will alwasy create branch node.
 				// Turn the existing node into that branch node then insert the new value.
@@ -75,8 +75,7 @@ impl Node {
 					let child = Box::new(Node::new(&old_nibbles[1..], *(node.child)));
 					BranchNode::new_with_node(old_nibbles[0], child)
 				}
-				.insert(new_nibbles, value)
-				.unwrap();
+				.insert(new_nibbles, value);
 				// Create an extension node based on the common part if needed.
 				if common.is_empty() {
 					branch_node.into()
@@ -84,7 +83,7 @@ impl Node {
 					ExtensionNode::new(common, Box::new(branch_node.into())).into()
 				}
 			}
-			Node::Value(..) => panic!("Cannot insert into a value node"),
+			Node::Value(..) => Node::new_value(value),
 		}
 	}
 
@@ -113,18 +112,14 @@ struct BranchNode {
 impl BranchNode {
 	// inserts adds a key/value to a branch node as either a sub-node or as a value.
 	// It returns none if there is an error.
-	pub fn insert(mut self, nibbles: &[u8], value: Vec<u8>) -> Option<Self> {
+	pub fn insert(mut self, nibbles: &[u8], value: Vec<u8>) -> Self {
 		if nibbles.is_empty() {
-			if self.branch_value.is_some() {
-				// TODO: Error: Cannot double insert into a branch node.
-				return None;
-			}
 			self.branch_value = Some(value.into());
 		} else {
 			let i = nibbles[0] as usize;
 			*self.children[i] = std::mem::take(&mut self.children[i]).insert(&nibbles[1..], value);
 		};
-		Some(self)
+		self
 	}
 
 	// new_with_node creates a new branch node that contains a given child node.

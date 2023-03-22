@@ -30,8 +30,6 @@ pub fn encode_bytes(x: Vec<u8>) -> Vec<u8> {
 
 // mpt_hash implements H(x) as used in the MPT.
 pub fn mpt_hash(x: &[u8], db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapper {
-	// let x = format!("0x{}", hex::encode(x));
-	// let x = x.as_bytes();
 	if x.len() < 32 {
 		RLPEncodeableWrapper::Raw(x.to_vec())
 	} else {
