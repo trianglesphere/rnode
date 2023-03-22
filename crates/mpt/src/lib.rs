@@ -43,7 +43,7 @@ impl Node {
 		if nibbles.is_empty() {
 			child
 		} else {
-			ExtensionNode::new(nibbles.to_owned(), Box::new(child)).into()
+			ExtensionNode::new_node(nibbles.to_owned(), Box::new(child))
 		}
 	}
 
@@ -154,8 +154,8 @@ struct ExtensionNode {
 }
 
 impl ExtensionNode {
-	fn new(nibbles: Vec<u8>, child: Box<Node>) -> Self {
-		Self { nibbles, child }
+	fn new_node(nibbles: Vec<u8>, child: Box<Node>) -> Node {
+		Node::Extension(Self { nibbles, child })
 	}
 
 	fn compact(&self) -> Vec<u8> {
@@ -189,9 +189,9 @@ impl ExtensionNode {
 		.insert(new_nibbles, value);
 		// Create an extension node based on the common part if needed.
 		if common.is_empty() {
-			branch_node.into()
+			branch_node
 		} else {
-			ExtensionNode::new(common, Box::new(branch_node.into())).into()
+			ExtensionNode::new_node(common, Box::new(branch_node))
 		}
 	}
 
@@ -209,12 +209,6 @@ impl ExtensionNode {
 		let list = vec![RLPEncodeableWrapper::Bytes(self.compact()), mpt_hash(&self.child.rlp_bytes(db), db)];
 		reth_rlp::encode_list(&list, &mut bytes);
 		bytes
-	}
-}
-
-impl From<ExtensionNode> for Node {
-	fn from(value: ExtensionNode) -> Self {
-		Node::Extension(value)
 	}
 }
 

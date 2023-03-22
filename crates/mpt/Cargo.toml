@@ -7,7 +7,7 @@ edition = "2021"
 
 [dependencies]
 core = {path = "../core"}
-reth-rlp = { git = "https://github.com/paradigmxyz/reth", features = ["derive"] }
+reth-rlp = { git = "https://github.com/paradigmxyz/reth" }
 reth-primitives = { git = "https://github.com/paradigmxyz/reth", features = [] }
 hex = "0.4.3"
 
