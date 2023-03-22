@@ -43,25 +43,21 @@ enum Node {
 }
 
 impl Node {
-	fn new(nibbles: &[u8], value: Vec<u8>) -> Self {
-		if nibbles.is_empty() {
-			ValueNode::new(value).into()
-		} else {
-			ExtensionNode::new(nibbles.to_owned(), ValueNode::new(value).into()).into()
-		}
-	}
-
-	fn new_with_node(nibbles: &[u8], child: Box<Node>) -> Box<Self> {
+	fn new(nibbles: &[u8], child: Node) -> Self {
 		if nibbles.is_empty() {
 			child
 		} else {
-			Box::new(ExtensionNode::new(nibbles.to_owned(), *child).into())
+			ExtensionNode::new(nibbles.to_owned(), Box::new(child)).into()
 		}
+	}
+
+	fn new_value(value: Vec<u8>) -> Self {
+		Node::Value(ValueNode::new(value))
 	}
 
 	fn insert(self, nibbles: &[u8], value: Vec<u8>) -> Self {
 		match self {
-			Node::Empty => Node::new(nibbles, value),
+			Node::Empty => Node::new(nibbles, Node::new_value(value)),
 			Node::Branch(node) => node.insert(nibbles, value).unwrap().into(),
 			Node::Extension(node) => {
 				let (common, new_nibbles, old_nibbles) = match_paths(nibbles, &node.nibbles);
@@ -78,7 +74,7 @@ impl Node {
 						Node::Branch(child) => child,
 					}
 				} else {
-					let child = Node::new_with_node(&old_nibbles[1..], node.child);
+					let child = Box::new(Node::new(&old_nibbles[1..], *(node.child)));
 					BranchNode::new_with_node(old_nibbles[0], child)
 				}
 				.insert(new_nibbles, value)
@@ -87,7 +83,7 @@ impl Node {
 				if common.is_empty() {
 					branch_node.into()
 				} else {
-					ExtensionNode::new(common, branch_node.into()).into()
+					ExtensionNode::new(common, Box::new(branch_node.into())).into()
 				}
 			}
 			Node::Value(..) => panic!("Cannot insert into a value node"),
@@ -174,11 +170,8 @@ struct ExtensionNode {
 }
 
 impl ExtensionNode {
-	fn new(nibbles: Vec<u8>, child: Node) -> Self {
-		Self {
-			nibbles,
-			child: Box::new(child),
-		}
+	fn new(nibbles: Vec<u8>, child: Box<Node>) -> Self {
+		Self { nibbles, child }
 	}
 
 	fn compact(&self) -> Vec<u8> {
