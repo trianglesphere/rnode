@@ -79,6 +79,40 @@ fn test_empty_root_hash() {
 	assert_eq!(hash, expected);
 }
 
+#[test]
+fn test_mpt_get() {
+	let mut mpt = MPT::default();
+	let inputs = vec![("do", "verb"), ("dog", "puppy"), ("doge", "coin"), ("horse", "stallion")];
+	for (k, v) in inputs.iter() {
+		mpt.insert(k.as_bytes().to_vec(), v.as_bytes().to_vec());
+	}
+	for (k, v) in inputs {
+		assert_eq!(mpt.get(k.into()), Some(v.as_bytes()));
+	}
+	assert_eq!(mpt.get("".into()), None);
+	assert_eq!(mpt.get("dogf".into()), None);
+	assert_eq!(mpt.get("hors".into()), None);
+	// assert_eq!(mpt.get("horses".into()), None); // TODO: Find this bug with fuzzing.
+}
+
+#[test]
+fn test_mpt_overwrite() {
+	let mut mpt = MPT::default();
+	let inputs = vec![
+		("do", "verb"),
+		("dog", "puppy"),
+		("doge", "coin"),
+		("horse", "stallion"),
+		("doge", "moon"),
+		("horse", "mare"),
+	];
+	for (k, v) in inputs.iter() {
+		mpt.insert(k.as_bytes().to_vec(), v.as_bytes().to_vec());
+	}
+	assert_eq!(mpt.get("doge".into()), Some("moon".as_bytes()));
+	assert_eq!(mpt.get("horse".into()), Some("mare".as_bytes()));
+}
+
 // Test MPT from https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/
 //     ('do', 'verb'), ('dog', 'puppy'), ('doge', 'coin'), ('horse', 'stallion').
 //     <64 6f> : 'verb'

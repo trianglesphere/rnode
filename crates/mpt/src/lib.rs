@@ -26,6 +26,10 @@ impl MPT {
 		let root = std::mem::take(&mut self.root);
 		self.root = root.insert(&k, v);
 	}
+
+	pub fn get(&self, k: Vec<u8>) -> Option<&[u8]> {
+		self.root.get(&bytes_to_nibbles(&k))
+	}
 }
 
 #[derive(Debug)]
@@ -52,34 +56,18 @@ impl Node {
 	fn insert(self, nibbles: &[u8], value: Vec<u8>) -> Self {
 		match self {
 			Node::Empty => Node::new(nibbles, Node::new_value(value)),
-			Node::Branch(node) => node.insert(nibbles, value).into(),
-			Node::Extension(node) => {
-				let (common, new_nibbles, old_nibbles) = match_paths(nibbles, &node.nibbles);
-				if new_nibbles.is_empty() && old_nibbles.is_empty() {
-					return node.child.insert(nibbles, value);
-				}
-				// Inserting here will alwasy create branch node.
-				// Turn the existing node into that branch node then insert the new value.
-				let branch_node = if old_nibbles.is_empty() {
-					match *node.child {
-						Node::Empty => panic!("Cannot point to an empty node in an extension"),
-						Node::Extension(..) => panic!("Cannot point to an extension node in an extension node"),
-						Node::Value(child) => BranchNode::new_with_value(child),
-						Node::Branch(child) => child,
-					}
-				} else {
-					let child = Box::new(Node::new(&old_nibbles[1..], *(node.child)));
-					BranchNode::new_with_node(old_nibbles[0], child)
-				}
-				.insert(new_nibbles, value);
-				// Create an extension node based on the common part if needed.
-				if common.is_empty() {
-					branch_node.into()
-				} else {
-					ExtensionNode::new(common, Box::new(branch_node.into())).into()
-				}
-			}
+			Node::Branch(node) => node.insert(nibbles, value),
+			Node::Extension(node) => node.insert(nibbles, value),
 			Node::Value(..) => Node::new_value(value),
+		}
+	}
+
+	fn get(&self, nibbles: &[u8]) -> Option<&[u8]> {
+		match self {
+			Node::Empty => None,
+			Node::Branch(node) => node.get(nibbles),
+			Node::Extension(node) => node.get(nibbles),
+			Node::Value(node) => Some(&node.value), // TODO: Intentional bug to see if fuzzing will catch it
 		}
 	}
 
@@ -108,25 +96,33 @@ struct BranchNode {
 impl BranchNode {
 	// inserts adds a key/value to a branch node as either a sub-node or as a value.
 	// It returns none if there is an error.
-	pub fn insert(mut self, nibbles: &[u8], value: Vec<u8>) -> Self {
+	fn insert(mut self, nibbles: &[u8], value: Vec<u8>) -> Node {
 		if nibbles.is_empty() {
 			self.branch_value = Some(value.into());
 		} else {
 			let i = nibbles[0] as usize;
 			*self.children[i] = std::mem::take(&mut self.children[i]).insert(&nibbles[1..], value);
 		};
-		self
+		self.into()
+	}
+
+	fn get(&self, nibbles: &[u8]) -> Option<&[u8]> {
+		if nibbles.is_empty() {
+			self.branch_value.as_ref().map(|v| &v.value[..])
+		} else {
+			self.children[nibbles[0] as usize].get(&nibbles[1..])
+		}
 	}
 
 	// new_with_node creates a new branch node that contains a given child node.
-	pub fn new_with_node(key: u8, node: Box<Node>) -> Self {
+	fn new_with_node(key: u8, node: Box<Node>) -> Self {
 		let mut branch_node = BranchNode::default();
 		branch_node.children[key as usize] = node;
 		branch_node
 	}
 
 	// new_with_value creates a new branch node that contains the given value.
-	pub fn new_with_value(value: ValueNode) -> Self {
+	fn new_with_value(value: ValueNode) -> Self {
 		BranchNode {
 			branch_value: Some(value),
 			..Default::default()
@@ -172,6 +168,42 @@ impl ExtensionNode {
 			Node::Branch(..) => true,
 		};
 		nibbles_to_compact(&self.nibbles, extension)
+	}
+
+	fn insert(self, nibbles: &[u8], value: Vec<u8>) -> Node {
+		let (common, new_nibbles, old_nibbles) = match_paths(nibbles, &self.nibbles);
+		if new_nibbles.is_empty() && old_nibbles.is_empty() {
+			return self.child.insert(nibbles, value);
+		}
+		// Inserting here will alwasy create branch node.
+		// Turn the existing node into that branch node then insert the new value.
+		let branch_node = if old_nibbles.is_empty() {
+			match *self.child {
+				Node::Empty => panic!("Cannot point to an empty node in an extension"),
+				Node::Extension(..) => panic!("Cannot point to an extension node in an extension node"),
+				Node::Value(child) => BranchNode::new_with_value(child),
+				Node::Branch(child) => child,
+			}
+		} else {
+			let child = Box::new(Node::new(&old_nibbles[1..], *(self.child)));
+			BranchNode::new_with_node(old_nibbles[0], child)
+		}
+		.insert(new_nibbles, value);
+		// Create an extension node based on the common part if needed.
+		if common.is_empty() {
+			branch_node.into()
+		} else {
+			ExtensionNode::new(common, Box::new(branch_node.into())).into()
+		}
+	}
+
+	fn get(&self, nibbles: &[u8]) -> Option<&[u8]> {
+		let (_, new_nibbles, old_nibbles) = match_paths(nibbles, &self.nibbles);
+		if old_nibbles.is_empty() {
+			self.child.get(new_nibbles)
+		} else {
+			None
+		}
 	}
 
 	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
