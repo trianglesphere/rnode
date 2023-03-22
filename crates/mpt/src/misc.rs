@@ -35,7 +35,7 @@ pub fn mpt_hash(x: &[u8], db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapp
 	if x.len() < 32 {
 		RLPEncodeableWrapper::Raw(x.to_vec())
 	} else {
-		let h = keccak256(&x);
+		let h = keccak256(x);
 		db.insert(h, x.to_vec());
 		RLPEncodeableWrapper::Bytes(h.to_vec())
 	}
@@ -80,7 +80,7 @@ pub fn nibbles_to_compact(nibbles: &[u8], extension: bool) -> Vec<u8> {
 		(false, false) => 3,
 	} << 4;
 	if !key.is_empty() && !even {
-		first = first | key[0];
+		first |= key[0];
 		key = &key[1..];
 	}
 	out.push(first);

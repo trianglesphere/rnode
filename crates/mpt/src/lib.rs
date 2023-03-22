@@ -22,9 +22,7 @@ impl MPT {
 
 	pub fn hash(&mut self) -> H256 {
 		self.db = HashMap::default();
-		let root_bytes = self.root.rlp_bytes(&mut self.db);
-		println!("{}:{}", hex::encode(&keccak256(&root_bytes)), hex::encode(&root_bytes));
-		keccak256(root_bytes)
+		keccak256(self.root.rlp_bytes(&mut self.db))
 	}
 
 	pub fn insert(&mut self, k: Vec<u8>, v: Vec<u8>) {
@@ -138,9 +136,10 @@ impl BranchNode {
 
 	// new_with_value creates a new branch node that contains the given value.
 	pub fn new_with_value(value: ValueNode) -> Self {
-		let mut branch_node = BranchNode::default();
-		branch_node.branch_value = Some(value);
-		branch_node
+		BranchNode {
+			branch_value: Some(value),
+			..Default::default()
+		}
 	}
 
 	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
