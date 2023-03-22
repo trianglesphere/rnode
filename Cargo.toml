@@ -4,7 +4,7 @@ members = [
 	"crates/client",
 	"crates/core",
 	"crates/derivation",
+	"crates/mpt",
 ]
 
 default-members = ["rnode"]
-
