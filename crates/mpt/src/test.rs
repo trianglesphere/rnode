@@ -73,7 +73,7 @@ fn test_nibbles_compact_conversions() {
 
 #[test]
 fn test_empty_root_hash() {
-	let mut mpt = MPT::new();
+	let mut mpt = MPT::default();
 	let hash = mpt.hash();
 	let expected = H256::from_str("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").unwrap();
 	assert_eq!(hash, expected);
@@ -116,7 +116,7 @@ fn test_empty_root_hash() {
 // }
 #[test]
 fn test_mpt_hash() {
-	let mut mpt = MPT::new();
+	let mut mpt = MPT::default();
 
 	mpt.insert("do".into(), "verb".into());
 	let hash = mpt.hash();

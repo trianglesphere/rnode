@@ -16,10 +16,6 @@ pub struct MPT {
 }
 
 impl MPT {
-	pub fn new() -> Self {
-		Self::default()
-	}
-
 	pub fn hash(&mut self) -> H256 {
 		self.db = HashMap::default();
 		keccak256(self.root.rlp_bytes(&mut self.db))
