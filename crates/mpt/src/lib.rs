@@ -3,11 +3,10 @@ use core::types::H256;
 use reth_primitives::keccak256;
 use std::{collections::HashMap, fmt::Debug};
 
-#[cfg(test)]
-mod test;
-
 mod display;
 mod misc;
+#[cfg(test)]
+mod test;
 
 #[derive(Default)]
 pub struct MPT {
@@ -17,7 +16,6 @@ pub struct MPT {
 
 impl MPT {
 	pub fn hash(&mut self) -> H256 {
-		self.db = HashMap::default();
 		keccak256(self.root.rlp_bytes(&mut self.db))
 	}
 
@@ -67,7 +65,7 @@ impl Node {
 			Node::Empty => None,
 			Node::Branch(node) => node.get(nibbles),
 			Node::Extension(node) => node.get(nibbles),
-			Node::Value(node) => Some(&node.value), // TODO: Intentional bug to see if fuzzing will catch it
+			Node::Value(node) => node.get(nibbles),
 		}
 	}
 
@@ -98,7 +96,7 @@ impl BranchNode {
 	// It returns none if there is an error.
 	fn insert(mut self, nibbles: &[u8], value: Vec<u8>) -> Node {
 		if nibbles.is_empty() {
-			self.branch_value = Some(value.into());
+			self.branch_value = Some(ValueNode::new(value));
 		} else {
 			let i = nibbles[0] as usize;
 			*self.children[i] = std::mem::take(&mut self.children[i]).insert(&nibbles[1..], value);
@@ -228,19 +226,11 @@ impl ValueNode {
 	fn new(value: Vec<u8>) -> Self {
 		Self { value }
 	}
+	fn get(&self, _nibbles: &[u8]) -> Option<&[u8]> {
+		// TODO: Intentional bug to see if fuzzing will catch it
+		Some(&self.value)
+	}
 	fn rlp_bytes(&self, _: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
 		encode_bytes(self.value.clone())
-	}
-}
-
-impl From<Vec<u8>> for ValueNode {
-	fn from(value: Vec<u8>) -> Self {
-		ValueNode::new(value)
-	}
-}
-
-impl From<ValueNode> for Node {
-	fn from(value: ValueNode) -> Self {
-		Node::Value(value)
 	}
 }
