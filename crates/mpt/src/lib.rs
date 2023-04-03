@@ -56,7 +56,13 @@ impl Node {
 			Node::Empty => Node::new(nibbles, Node::new_value(value)),
 			Node::Branch(node) => node.insert(nibbles, value),
 			Node::Extension(node) => node.insert(nibbles, value),
-			Node::Value(..) => Node::new_value(value),
+			Node::Value(node) => {
+				if nibbles.is_empty() {
+					Node::new_value(value)
+				} else {
+					BranchNode::new_with_value(node).insert(nibbles, value)
+				}
+			}
 		}
 	}
 
@@ -221,6 +227,11 @@ impl ValueNode {
 		Self { value }
 	}
 	fn get(&self, _nibbles: &[u8]) -> Option<&[u8]> {
+		// if _nibbles.is_empty() {
+		// 	Some(&self.value)
+		// } else {
+		// 	None
+		// }
 		// TODO: Intentional bug to see if fuzzing will catch it
 		Some(&self.value)
 	}

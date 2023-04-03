@@ -96,6 +96,18 @@ fn test_mpt_get() {
 }
 
 #[test]
+// Found via fuzzing
+fn test_mpt_empty_overwrite() {
+	let mut mpt = MPT::default();
+	mpt.insert(vec![], vec![]);
+	mpt.insert(vec![2], vec![0]);
+	mpt.insert(vec![], vec![]);
+
+	assert_eq!(mpt.get(vec![]), Some(vec![].as_slice()));
+	assert_eq!(mpt.get(vec![2]), Some(vec![0].as_slice()));
+}
+
+#[test]
 fn test_mpt_overwrite() {
 	let mut mpt = MPT::default();
 	let inputs = vec![
