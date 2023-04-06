@@ -177,7 +177,7 @@ impl ExtensionNode {
 	fn insert(self, nibbles: &[u8], value: Vec<u8>) -> Node {
 		let (common, new_nibbles, old_nibbles) = match_paths(nibbles, &self.nibbles);
 		if new_nibbles.is_empty() && old_nibbles.is_empty() {
-			return self.child.insert(nibbles, value);
+			return ExtensionNode::new_node(common, Box::new(self.child.insert(&[], value)));
 		}
 		// Inserting here will alwasy create branch node.
 		// Turn the existing node into that branch node then insert the new value.
@@ -227,13 +227,14 @@ impl ValueNode {
 		Self { value }
 	}
 	fn get(&self, _nibbles: &[u8]) -> Option<&[u8]> {
-		// if _nibbles.is_empty() {
-		// 	Some(&self.value)
-		// } else {
-		// 	None
-		// }
-		// TODO: Intentional bug to see if fuzzing will catch it
-		Some(&self.value)
+		if _nibbles.is_empty() {
+			Some(&self.value)
+		} else {
+			None
+		}
+		// // TODO: Intentional bug to see if fuzzing will catch it.
+		// // It did not b/c I did not fuzz by querying with known missing keys.
+		// Some(&self.value)
 	}
 	fn rlp_bytes(&self, _: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
 		encode_bytes(self.value.clone())
