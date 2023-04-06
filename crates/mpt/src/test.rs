@@ -96,6 +96,30 @@ fn test_mpt_get() {
 }
 
 #[test]
+// Found via fuzzing
+fn test_mpt_empty_overwrite() {
+	let mut mpt = MPT::default();
+	mpt.insert(vec![], vec![]);
+	mpt.insert(vec![2], vec![0]);
+	mpt.insert(vec![], vec![]);
+
+	assert_eq!(mpt.get(vec![]), Some(vec![].as_slice()));
+	assert_eq!(mpt.get(vec![2]), Some(vec![0].as_slice()));
+}
+
+#[test]
+// Found via fuzzing
+fn test_mpt_overwrite_value_of_extension_node() {
+	let mut mpt = MPT::default();
+	mpt.insert(vec![0], vec![]);
+	mpt.insert(vec![0], vec![0]);
+	mpt.insert(vec![], vec![]);
+
+	assert_eq!(mpt.get(vec![]), Some(vec![].as_slice()));
+	assert_eq!(mpt.get(vec![0]), Some(vec![0].as_slice()));
+}
+
+#[test]
 fn test_mpt_overwrite() {
 	let mut mpt = MPT::default();
 	let inputs = vec![
@@ -111,6 +135,19 @@ fn test_mpt_overwrite() {
 	}
 	assert_eq!(mpt.get("doge".into()), Some("moon".as_bytes()));
 	assert_eq!(mpt.get("horse".into()), Some("mare".as_bytes()));
+}
+
+#[test]
+fn test_mpt_prefix_get() {
+	let mut mpt = MPT::default();
+	let inputs = vec![("do", "verb"), ("dog", "puppy"), ("doge", "coin"), ("horse", "stallion")];
+	for (k, v) in inputs.iter() {
+		mpt.insert(k.as_bytes().to_vec(), v.as_bytes().to_vec());
+	}
+	assert_eq!(mpt.get("d".into()), None);
+	assert_eq!(mpt.get("dodo".into()), None);
+	assert_eq!(mpt.get("doges".into()), None);
+	assert_eq!(mpt.get("horses".into()), None);
 }
 
 // Test MPT from https://ethereum.org/en/developers/docs/data-structures-and-encoding/patricia-merkle-trie/
