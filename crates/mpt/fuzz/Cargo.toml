@@ -1,0 +1,35 @@
+[package]
+name = "mpt-fuzz"
+version = "0.0.0"
+publish = false
+edition = "2021"
+
+[package.metadata]
+cargo-fuzz = true
+
+[dependencies]
+libfuzzer-sys = "0.4"
+
+[dependencies.mpt]
+path = ".."
+
+# Prevent this from interfering with workspaces
+[workspace]
+members = ["."]
+
+[profile.release]
+debug = 1
+
+# We need to patch these crates because reth does so as well
+# and we rely on reth for primitives, hashing, & RLP.
+[patch.crates-io]
+# revm = { git = "https://github.com/bluealloy/revm" }
+revm-primitives = { git = "https://github.com/bluealloy/revm" }
+# patched for quantity U256 responses <https://github.com/recmo/uint/issues/224>
+ruint = { git = "https://github.com/paradigmxyz/uint" }
+
+[[bin]]
+name = "mpt_insert_get"
+path = "fuzz_targets/mpt_insert_get.rs"
+test = false
+doc = false
