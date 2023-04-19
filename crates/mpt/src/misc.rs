@@ -1,4 +1,4 @@
-use core::types::H256;
+use core::types::Hash;
 use reth_primitives::{keccak256, Bytes};
 use reth_rlp::Encodable;
 use std::{collections::HashMap, fmt::Debug, iter::zip};
@@ -29,7 +29,7 @@ pub fn encode_bytes(x: Vec<u8>) -> Vec<u8> {
 }
 
 // mpt_hash implements H(x) as used in the MPT.
-pub fn mpt_hash(x: &[u8], db: &mut HashMap<H256, Vec<u8>>) -> RLPEncodeableWrapper {
+pub fn mpt_hash(x: &[u8], db: &mut HashMap<Hash, Vec<u8>>) -> RLPEncodeableWrapper {
 	if x.len() < 32 {
 		RLPEncodeableWrapper::Raw(x.to_vec())
 	} else {

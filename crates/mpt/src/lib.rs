@@ -1,5 +1,5 @@
 use crate::misc::*;
-use core::types::H256;
+use core::types::Hash;
 use reth_primitives::keccak256;
 use std::{collections::HashMap, fmt::Debug};
 
@@ -11,11 +11,11 @@ mod test;
 #[derive(Default)]
 pub struct MPT {
 	root: Node,
-	db: HashMap<H256, Vec<u8>>,
+	db: HashMap<Hash, Vec<u8>>,
 }
 
 impl MPT {
-	pub fn hash(&mut self) -> H256 {
+	pub fn hash(&mut self) -> Hash {
 		keccak256(self.root.rlp_bytes(&mut self.db))
 	}
 
@@ -75,7 +75,7 @@ impl Node {
 		}
 	}
 
-	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+	fn rlp_bytes(&mut self, db: &mut HashMap<Hash, Vec<u8>>) -> Vec<u8> {
 		match self {
 			Node::Empty => vec![0x80],
 			Node::Branch(node) => node.rlp_bytes(db),
@@ -133,7 +133,7 @@ impl BranchNode {
 		}
 	}
 
-	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+	fn rlp_bytes(&mut self, db: &mut HashMap<Hash, Vec<u8>>) -> Vec<u8> {
 		let mut list: Vec<RLPEncodeableWrapper> = Vec::new();
 		let mut bytes = Vec::new();
 		for child in self.children.iter_mut() {
@@ -210,7 +210,7 @@ impl ExtensionNode {
 		}
 	}
 
-	fn rlp_bytes(&mut self, db: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+	fn rlp_bytes(&mut self, db: &mut HashMap<Hash, Vec<u8>>) -> Vec<u8> {
 		let mut bytes = Vec::new();
 		let list = vec![RLPEncodeableWrapper::Bytes(self.compact()), mpt_hash(&self.child.rlp_bytes(db), db)];
 		reth_rlp::encode_list(&list, &mut bytes);
@@ -236,7 +236,7 @@ impl ValueNode {
 		// // It did not b/c I did not fuzz by querying with known missing keys.
 		// Some(&self.value)
 	}
-	fn rlp_bytes(&self, _: &mut HashMap<H256, Vec<u8>>) -> Vec<u8> {
+	fn rlp_bytes(&self, _: &mut HashMap<Hash, Vec<u8>>) -> Vec<u8> {
 		encode_bytes(self.value.clone())
 	}
 }

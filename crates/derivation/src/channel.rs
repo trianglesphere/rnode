@@ -1,7 +1,7 @@
 use super::frame::Frame;
 use core::prelude::*;
 
-use core::types::H128;
+use core::types::ChannelID;
 use std::cmp::max;
 use std::collections::HashMap;
 
@@ -10,7 +10,7 @@ const CHANNEL_TIMEOUT: u64 = 100;
 #[derive(Debug)]
 pub struct Channel {
 	frames: HashMap<u16, Frame>,
-	id: H128,
+	id: ChannelID,
 	size: u64,
 	highest_frame: u16,
 	end_frame: Option<u16>,
@@ -19,7 +19,7 @@ pub struct Channel {
 }
 
 impl Channel {
-	pub fn new(id: H128, l1_block: BlockID) -> Self {
+	pub fn new(id: ChannelID, l1_block: BlockID) -> Self {
 		Self {
 			frames: HashMap::new(),
 			id,

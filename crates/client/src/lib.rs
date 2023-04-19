@@ -1,10 +1,10 @@
-use core::types::{Header, Receipt, Transaction, H256};
+use core::types::{Hash, Header, Receipt, Transaction};
 use eyre::Result;
 
 pub trait Provider {
-	fn get_header(&mut self, hash: H256) -> Result<Header>;
-	fn get_receipts_by_root(&self, root: H256) -> Result<Vec<Receipt>>;
-	fn get_transactions_by_root(&self, root: H256) -> Result<Vec<Transaction>>;
+	fn get_header(&mut self, hash: Hash) -> Result<Header>;
+	fn get_receipts_by_root(&self, root: Hash) -> Result<Vec<Receipt>>;
+	fn get_transactions_by_root(&self, root: Hash) -> Result<Vec<Transaction>>;
 }
 
 pub mod rpc_provider;

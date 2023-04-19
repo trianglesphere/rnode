@@ -2,15 +2,15 @@ use super::channel::Channel;
 use super::frame::Frame;
 use core::prelude::*;
 
-use core::types::H128;
+use core::types::ChannelID;
 use std::collections::{HashMap, VecDeque};
 
 const MAX_CHANNEL_BANK_SIZE: u64 = 100_000_000;
 
 #[derive(Default, Debug)]
 pub struct ChannelBank {
-	channels_map: HashMap<H128, Channel>,
-	channels_by_creation: VecDeque<H128>,
+	channels_map: HashMap<ChannelID, Channel>,
+	channels_by_creation: VecDeque<ChannelID>,
 }
 
 impl ChannelBank {

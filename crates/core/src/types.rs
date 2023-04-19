@@ -1,15 +1,16 @@
-pub type H128 = reth_primitives::H128;
+pub type ChannelID = reth_primitives::H128;
 pub type Address = reth_primitives::H160;
-pub type H256 = reth_primitives::H256;
+pub type Hash = reth_primitives::H256;
+
 pub type Header = reth_primitives::Header;
 pub type Receipt = ethers_core::types::TransactionReceipt;
 
-pub fn h256_to_ethers(h: H256) -> ethers_core::types::H256 {
+pub fn h256_to_ethers(h: Hash) -> ethers_core::types::H256 {
 	ethers_core::types::H256::from_slice(h.as_bytes())
 }
 
-pub fn ethers_h256_to_h256(h: ethers_core::types::H256) -> H256 {
-	H256::from_slice(h.as_bytes())
+pub fn ethers_h256_to_h256(h: ethers_core::types::H256) -> Hash {
+	Hash::from_slice(h.as_bytes())
 }
 
 pub fn ethers_h160_to_h160(h: ethers_core::types::H160) -> Address {
@@ -18,7 +19,7 @@ pub fn ethers_h160_to_h160(h: ethers_core::types::H160) -> Address {
 
 #[derive(Debug, Clone)]
 pub struct Transaction {
-	pub hash: H256,
+	pub hash: Hash,
 	pub from: Address,
 	pub input: Vec<u8>,
 }

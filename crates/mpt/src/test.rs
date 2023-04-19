@@ -75,7 +75,7 @@ fn test_nibbles_compact_conversions() {
 fn test_empty_root_hash() {
 	let mut mpt = MPT::default();
 	let hash = mpt.hash();
-	let expected = H256::from_str("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").unwrap();
+	let expected = Hash::from_str("56e81f171bcc55a6ff8345e692c0f86e5b48e01b996cadc001622fb5e363b421").unwrap();
 	assert_eq!(hash, expected);
 }
 
@@ -191,21 +191,21 @@ fn test_mpt_hash() {
 
 	mpt.insert("do".into(), "verb".into());
 	let hash = mpt.hash();
-	let expected_hash = H256::from_str("0x014f07ed95e2e028804d915e0dbd4ed451e394e1acfd29e463c11a060b2ddef7").unwrap();
+	let expected_hash = Hash::from_str("0x014f07ed95e2e028804d915e0dbd4ed451e394e1acfd29e463c11a060b2ddef7").unwrap();
 	assert_eq!(expected_hash, hash);
 
 	mpt.insert("dog".into(), "puppy".into());
 	let hash = mpt.hash();
-	let expected_hash = H256::from_str("0x779db3986dd4f38416bfde49750ef7b13c6ecb3e2221620bcad9267e94604d36").unwrap();
+	let expected_hash = Hash::from_str("0x779db3986dd4f38416bfde49750ef7b13c6ecb3e2221620bcad9267e94604d36").unwrap();
 	assert_eq!(expected_hash, hash);
 
 	mpt.insert("doge".into(), "coin".into());
 	let hash = mpt.hash();
-	let expected_hash = H256::from_str("0xef7b2fe20f5d2c30c46ad4d83c39811bcbf1721aef2e805c0e107947320888b6").unwrap();
+	let expected_hash = Hash::from_str("0xef7b2fe20f5d2c30c46ad4d83c39811bcbf1721aef2e805c0e107947320888b6").unwrap();
 	assert_eq!(expected_hash, hash);
 
 	mpt.insert("horse".into(), "stallion".into());
 	let hash = mpt.hash();
-	let expected_hash = H256::from_str("0x5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84").unwrap();
+	let expected_hash = Hash::from_str("0x5991bb8c6514148a29db676a14ac506cd2cd5775ace63c30a4fe457715e9ac84").unwrap();
 	assert_eq!(expected_hash, hash);
 }
