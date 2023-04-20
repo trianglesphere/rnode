@@ -78,6 +78,7 @@ pub type Receipt = ethers_core::types::TransactionReceipt;
 #[derive(Debug, Clone)]
 pub struct Transaction {
 	pub hash: Hash,
+	pub to: Option<Address>,
 	pub from: Address,
 	pub input: Vec<u8>,
 }
@@ -86,6 +87,7 @@ impl From<ethers_core::types::Transaction> for Transaction {
 	fn from(value: ethers_core::types::Transaction) -> Self {
 		Transaction {
 			hash: value.hash.into(),
+			to: value.to.map(Address::from),
 			from: value.from.into(),
 			input: value.input.to_vec(),
 		}

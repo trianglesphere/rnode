@@ -1,5 +1,6 @@
 use crate::{address_literal, hash_literal, id::BlockID, types::*};
 
+#[derive(Debug, Clone, Copy)]
 pub struct SystemConfig {
 	pub batcher_address: Address,
 	pub overhead: Hash,
@@ -7,6 +8,7 @@ pub struct SystemConfig {
 	pub gas_limit: u64,
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct RollupConfig {
 	pub l1_genesis: BlockID,
 	pub l2_genesis: BlockID,

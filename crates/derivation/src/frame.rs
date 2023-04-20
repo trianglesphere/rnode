@@ -28,7 +28,6 @@ pub fn parse_frames(tx_data: &[u8]) -> Vec<Frame> {
 		let len = u32::from_be_bytes(tx_data[18..22].try_into().unwrap());
 		let ulen = len as usize;
 		let data = tx_data[22..22 + ulen].to_vec();
-		// dbg!(id, number, len, data.len());
 		let is_last = tx_data[22 + ulen];
 		let is_last = if is_last == 0 {
 			false

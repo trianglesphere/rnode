@@ -6,7 +6,6 @@ use super::read_adapter::ReadAdpater;
 
 use core::prelude::*;
 
-use core::types::{Receipt, Transaction};
 use ethers_core::utils::rlp::{decode, Rlp};
 use flate2::read::ZlibDecoder;
 use std::io::Read;
@@ -40,24 +39,33 @@ fn parse_batches(data: Vec<u8>) -> Vec<Batch> {
 			Err(_) => break,
 		}
 	}
-	// dbg!(decoded_batches);
 	decoded_batches.iter().filter_map(|b| decode(b).ok()).collect()
 }
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct Derivation {
 	channel_bank: ChannelBank,
 	batch_queue: BatchQueue,
+	config: RollupConfig,
 }
 
 impl Derivation {
+	pub fn new(cfg: RollupConfig) -> Self {
+		Self {
+			channel_bank: ChannelBank::new(cfg),
+			batch_queue: BatchQueue::new(cfg),
+			config: cfg,
+		}
+	}
 	pub fn load_l1_data(&mut self, l1_block: L1BlockRef, transactions: Vec<Transaction>, _receipts: Vec<Receipt>) {
-		// TODO: Create system config from the receipts
-		let batcher_address = core::address_literal!("7431310e026B69BFC676C0013E12A1A11411EEc9");
+		// TODO: update system config from receipts
+
+		let sys_config = self.config.system_config;
 
 		let batches = transactions
 			.into_iter()
-			.filter(move |tx| tx.from == batcher_address)
+			.filter(|tx| tx.to == Some(self.config.batch_inbox_address))
+			.filter(|tx| tx.from == sys_config.batcher_address)
 			.flat_map(|tx| parse_frames(&tx.input))
 			.reassemble_channels(&mut self.channel_bank, l1_block.into())
 			.map(|c| c.data())

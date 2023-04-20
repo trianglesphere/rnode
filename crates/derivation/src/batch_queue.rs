@@ -5,17 +5,27 @@ use std::collections::{HashMap, VecDeque};
 use super::batch::Batch;
 use core::prelude::*;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
 pub struct BatchQueue {
 	l1_blocks: VecDeque<L1BlockRef>,
 	// Map batch timestamp to batches in order that they were received
 	batches: HashMap<u64, VecDeque<Batch>>,
+
+	l2_block_time: u64,
+	// seq_window_size: u64,
+	// max_sequencer_drift: u64,
 }
 
-const L2_BLOCK_TIME: u64 = 2u64;
-// const SEQ_WINDOW_SIZE: u64 = 3600u64;
-
 impl BatchQueue {
+	pub fn new(cfg: RollupConfig) -> Self {
+		BatchQueue {
+			l1_blocks: VecDeque::default(),
+			batches: HashMap::default(),
+			l2_block_time: cfg.l2_block_time,
+			// seq_window_size: cfg.seq_window_size,
+			// max_sequencer_drift: cfg.max_sequencer_drift,
+		}
+	}
 	pub fn load_batches(&mut self, batches: impl Iterator<Item = Batch>, l1_origin: L1BlockRef) {
 		self.l1_blocks.push_back(l1_origin);
 		for b in batches {
@@ -28,7 +38,7 @@ impl BatchQueue {
 	}
 
 	pub fn get_block_candidate(&mut self, l2_head: L2BlockRef) -> Option<L2BlockCandidate> {
-		let next_timestamp = l2_head.time + L2_BLOCK_TIME;
+		let next_timestamp = l2_head.time + self.l2_block_time;
 		if let Some(candidates) = self.batches.get(&next_timestamp) {
 			let out = candidates.front().expect("Should have entry in any created queue");
 			// TODO: Throw out the batch if we can't decode it.

@@ -7,13 +7,26 @@ use std::collections::{HashMap, VecDeque};
 
 const MAX_CHANNEL_BANK_SIZE: u64 = 100_000_000;
 
-#[derive(Default, Debug)]
+#[derive(Debug)]
+/// ChannelBank stores all pending transactions
 pub struct ChannelBank {
 	channels_map: HashMap<ChannelID, Channel>,
 	channels_by_creation: VecDeque<ChannelID>,
+	channel_timeout: u64,
 }
 
 impl ChannelBank {
+	pub fn new(cfg: RollupConfig) -> Self {
+		Self {
+			channels_map: HashMap::default(),
+			channels_by_creation: VecDeque::default(),
+			channel_timeout: cfg.channel_timeout,
+		}
+	}
+	/// load_frame adds a frame to the channel bank.
+	/// The caller must maintain the invariant that get_ready_channel is called until there
+	/// are no more ready channels before adding more frames.
+	/// This function will panic (via assert) if this invariant is not maintained.
 	pub fn load_frame(&mut self, frame: Frame, l1_block: BlockID) {
 		assert!(
 			!self.peek().is_some_and(|c| c.is_ready()),
@@ -30,10 +43,12 @@ impl ChannelBank {
 		self.prune();
 	}
 
+	/// get_ready_channel returns the first ready channel.
 	pub fn get_ready_channel(&mut self) -> Option<Channel> {
+		// TODO: this should be a while loop. See if there is a test or fuzzing to catch this.
 		if self.peek()?.is_ready() {
 			let ch = self.remove().unwrap();
-			if !ch.is_timed_out() {
+			if !ch.is_timed_out(self.channel_timeout) {
 				return Some(ch);
 			}
 		}

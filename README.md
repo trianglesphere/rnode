@@ -10,7 +10,7 @@ with no multi-threaded or networked parts inside the core of derivation.
 
 - [ ] Derivation Pipeline
     - [ ] System Config
-    - [ ] Inbox Address check
+    - [x] Inbox Address check
     - [x] Filter from authorized batcher
     - [x] Parse frames (basic)
     - [ ] Parse frames (resilient to malformed data)
@@ -39,7 +39,7 @@ with no multi-threaded or networked parts inside the core of derivation.
 ### TODO
 
 - Fake RPC provider for tests
-- Use own hash / block types
+- Use own block types
 - Remove ethers core RLP & use reth-rlp
 - Finish MPT
 - Finish derivation

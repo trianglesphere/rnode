@@ -14,6 +14,7 @@ pub struct L2BlockCandidate {
 }
 
 pub mod prelude {
+	pub use crate::chain_config::RollupConfig;
 	pub use crate::id::BlockID;
 	pub use crate::id::L1BlockRef;
 	pub use crate::id::L2BlockRef;
