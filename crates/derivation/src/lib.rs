@@ -1,6 +1,5 @@
 #![feature(hash_drain_filter)]
 #![feature(let_chains)]
-#![feature(is_some_and)]
 
 pub mod derivation;
 
