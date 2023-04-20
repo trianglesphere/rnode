@@ -11,7 +11,7 @@ impl ChannelID {
 pub struct Address([u8; 20]);
 
 impl Address {
-	pub fn new(v: [u8; 20]) -> Self {
+	pub const fn new(v: [u8; 20]) -> Self {
 		Self(v)
 	}
 }
@@ -39,7 +39,7 @@ macro_rules! address_literal {
 pub struct Hash([u8; 32]);
 
 impl Hash {
-	pub fn new(v: [u8; 32]) -> Self {
+	pub const fn new(v: [u8; 32]) -> Self {
 		Self(v)
 	}
 	pub fn to_vec(self) -> Vec<u8> {
