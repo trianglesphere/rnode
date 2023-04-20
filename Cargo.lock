@@ -446,6 +446,7 @@ dependencies = [
 name = "derivation"
 version = "0.1.0"
 dependencies = [
+ "client",
  "core",
  "ethers-core 1.0.2",
  "eyre",

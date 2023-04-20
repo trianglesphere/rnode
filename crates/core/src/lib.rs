@@ -6,7 +6,6 @@ use ethers_core::types::Transaction;
 
 #[derive(Debug)]
 pub struct L2BlockCandidate {
-	// pub parent_hash: H256,
 	pub number: u64,
 	pub timestamp: u64,
 	pub transactions: Vec<Transaction>,

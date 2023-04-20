@@ -45,6 +45,22 @@ impl Derivation {
 	pub fn next_l2_attributes(&mut self, l2_head: L2BlockRef) -> Option<L2BlockCandidate> {
 		self.batch_queue.get_block_candidate(l2_head)
 	}
+
+	pub fn run(&mut self, start_l1_block: u64, end_l1_block: u64, l1_provider: &mut impl client::Provider) {
+		for i in start_l1_block..end_l1_block {
+			let header = l1_provider.get_header_by_number(i).unwrap();
+			let transactions = l1_provider.get_transactions_by_root(header.transactions_root.into()).unwrap();
+			self.load_l1_data(header.into(), transactions, Vec::default());
+			let mut l2_head = L2BlockRef {
+				time: self.config.l2_genesis_time,
+				..Default::default()
+			};
+			while let Some(candidate) = self.next_l2_attributes(l2_head) {
+				println!("{:?}", candidate);
+				l2_head.time = candidate.timestamp;
+			}
+		}
+	}
 }
 
 fn decompress(r: impl Read) -> Vec<u8> {
