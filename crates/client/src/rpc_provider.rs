@@ -30,11 +30,29 @@ impl Provider for Client {
 		let txs: Vec<Transaction> = block.transactions.clone().into_iter().map(|t| t.into()).collect();
 		let tx_root = block.transactions_root.into();
 
-		let receipts = self.get_receipts_by_transactions(&txs)?;
-		let receipt_root = block.receipts_root.into();
+		// let receipts = self.get_receipts_by_transactions(&txs)?;
+		// let receipt_root = block.receipts_root.into();
 
 		self.transactions.insert(tx_root, txs);
-		self.receipts.insert(receipt_root, receipts);
+		// self.receipts.insert(receipt_root, receipts);
+
+		let header = crate::types::header_from_block(block)?;
+		Ok(header)
+	}
+
+	/// Gets a block header by block number
+	fn get_header_by_number(&mut self, n: u64) -> Result<Header> {
+		let block = self.rt.block_on(self.provider.get_block_with_txs(n))?;
+		let block = block.ok_or(eyre::eyre!("did not find the block"))?;
+
+		let txs: Vec<Transaction> = block.transactions.clone().into_iter().map(|t| t.into()).collect();
+		let tx_root = block.transactions_root.into();
+
+		// let receipts = self.get_receipts_by_transactions(&txs)?;
+		// let receipt_root = block.receipts_root.into();
+
+		self.transactions.insert(tx_root, txs);
+		// self.receipts.insert(receipt_root, receipts);
 
 		let header = crate::types::header_from_block(block)?;
 		Ok(header)
@@ -71,21 +89,21 @@ impl Client {
 		})
 	}
 
-	/// Get transaction receipts for a list of transactions
-	fn get_receipts_by_transactions(&self, transactions: &[Transaction]) -> Result<Vec<Receipt>> {
-		let mut receipts = Vec::new();
-		for tx in transactions.iter() {
-			let receipt = self.get_transaction_receipt(tx.hash)?;
-			receipts.push(receipt)
-		}
-		Ok(receipts)
-	}
+	// /// Get transaction receipts for a list of transactions
+	// fn get_receipts_by_transactions(&self, transactions: &[Transaction]) -> Result<Vec<Receipt>> {
+	// 	let mut receipts = Vec::anew();
+	// 	for tx in transactions.iter() {
+	// 		let receipt = self.get_transaction_receipt(tx.hash)?;
+	// 		receipts.push(receipt)
+	// 	}
+	// 	Ok(receipts)
+	// }
 
-	/// Gets a transaction receipt by transaction hash
-	fn get_transaction_receipt(&self, transaction_hash: Hash) -> Result<Receipt> {
-		let transaction_hash: ethers_core::types::H256 = transaction_hash.into();
-		let receipt = self.rt.block_on(self.provider.get_transaction_receipt(transaction_hash))?;
-		let receipt = receipt.ok_or(eyre::eyre!("did not find the receipt"))?;
-		Ok(receipt)
-	}
+	// /// Gets a transaction receipt by transaction hash
+	// fn_get_transaction_receipt(&self, transaction_hash: Hash) -> Result<Receipt> {
+	// 	let transaction_hash: ethers_core::types::H256 = transaction_hash.into();
+	// 	let receipt = self.rt.block_on(self.provider.get_transaction_receipt(transaction_hash))?;
+	// 	let receipt = receipt.ok_or(eyre::eyre!("did not find the receipt"))?;
+	// 	Ok(receipt)
+	// }
 }
