@@ -17,7 +17,7 @@ fn main() -> Result<()> {
 	let transactions = provider.get_transactions_by_root(header.transactions_root.into())?;
 	let receipts = provider.get_receipts_by_root(header.receipts_root.into())?;
 
-	let mut derivation = Derivation::default();
+	let mut derivation = Derivation::new(core::chain_config::GOERLI_CONFIG);
 	derivation.load_l1_data(header.into(), transactions, receipts);
 
 	Ok(())

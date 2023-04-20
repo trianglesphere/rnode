@@ -1,11 +1,7 @@
-use super::frame::Frame;
+use crate::frame::Frame;
 use core::prelude::*;
-
-use core::types::ChannelID;
 use std::cmp::max;
 use std::collections::HashMap;
-
-const CHANNEL_TIMEOUT: u64 = 100;
 
 #[derive(Debug)]
 pub struct Channel {
@@ -66,8 +62,8 @@ impl Channel {
 		(0..=last).map(|i| self.frames.contains_key(&i)).all(|a| a)
 	}
 
-	// data returns the channel data. It will panic if `is_ready` is false.
-	// This fully consumes the channel.
+	/// data returns the channel data. It will panic if `is_ready` is false.
+	/// This fully consumes the channel.
 	pub fn data(mut self) -> impl Iterator<Item = u8> {
 		(0..=self.end_frame.unwrap()).flat_map(move |i| self.frames.remove(&i).unwrap().data)
 	}
@@ -76,9 +72,9 @@ impl Channel {
 		self.end_frame.is_some()
 	}
 
-	pub fn is_timed_out(&self) -> bool {
+	pub fn is_timed_out(&self, timeout: u64) -> bool {
 		// TODO: > or >= here?
-		self.highest_l1_block.number - self.lowest_l1_block.number > CHANNEL_TIMEOUT
+		self.highest_l1_block.number - self.lowest_l1_block.number > timeout
 	}
 
 	pub fn size(&self) -> u64 {

@@ -48,3 +48,25 @@ impl Decodable for BatchV1 {
 		})
 	}
 }
+
+pub fn parse_batches(data: Vec<u8>) -> Vec<Batch> {
+	// TODO: Truncate data to 10KB (post compression)
+	// The data we received is an RLP encoded string. Before decoding the batch itself,
+	// we need to decode the string to get the actual batch data.
+	let mut decoded_batches: Vec<Vec<u8>> = Vec::new();
+	let mut buf: &[u8] = &data;
+
+	loop {
+		let rlp = Rlp::new(buf);
+		let size = rlp.size();
+
+		match rlp.as_val() {
+			Ok(b) => {
+				decoded_batches.push(b);
+				buf = &buf[size..];
+			}
+			Err(_) => break,
+		}
+	}
+	decoded_batches.iter().filter_map(|b| decode(b).ok()).collect()
+}
