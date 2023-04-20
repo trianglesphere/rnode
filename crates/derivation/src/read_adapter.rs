@@ -1,5 +1,4 @@
 /// ReadAdapter provides a Read method for Iterator<Item=u8> objects.
-// TODO: Should I be Iterator<Item = u8>>?
 pub struct ReadAdpater<I> {
 	iter: I,
 }

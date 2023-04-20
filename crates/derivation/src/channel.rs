@@ -1,7 +1,5 @@
-use super::frame::Frame;
+use crate::frame::Frame;
 use core::prelude::*;
-
-use core::types::ChannelID;
 use std::cmp::max;
 use std::collections::HashMap;
 

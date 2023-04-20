@@ -1,5 +1,5 @@
-use super::channel::Channel;
-use super::frame::Frame;
+use crate::channel::Channel;
+use crate::frame::Frame;
 use core::prelude::*;
 
 use core::types::ChannelID;
