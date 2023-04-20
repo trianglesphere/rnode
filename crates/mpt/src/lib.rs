@@ -1,6 +1,5 @@
 use crate::misc::*;
-use core::types::Hash;
-use reth_primitives::keccak256;
+use core::types::{keccak, Hash};
 use std::{collections::HashMap, fmt::Debug};
 
 mod display;
@@ -16,7 +15,7 @@ pub struct MPT {
 
 impl MPT {
 	pub fn hash(&mut self) -> Hash {
-		keccak256(self.root.rlp_bytes(&mut self.db))
+		keccak(self.root.rlp_bytes(&mut self.db))
 	}
 
 	pub fn insert(&mut self, k: Vec<u8>, v: Vec<u8>) {

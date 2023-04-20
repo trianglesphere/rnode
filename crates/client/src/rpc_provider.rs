@@ -1,6 +1,6 @@
 use crate::Provider;
 use core::prelude::*;
-use core::types::{ethers_h256_to_h256, h256_to_ethers, Header};
+use core::types::{Hash, Header};
 
 use ethers_providers::{Http, Middleware, Provider as RPCProvider};
 use eyre::Result;
@@ -23,15 +23,15 @@ pub struct Client {
 impl Provider for Client {
 	/// Gets a block header by block hash
 	fn get_header(&mut self, hash: Hash) -> Result<Header> {
-		let hash = h256_to_ethers(hash);
+		let hash: ethers_core::types::H256 = hash.into();
 		let block = self.rt.block_on(self.provider.get_block_with_txs(hash))?;
 		let block = block.ok_or(eyre::eyre!("did not find the block"))?;
 
 		let txs: Vec<Transaction> = block.transactions.clone().into_iter().map(|t| t.into()).collect();
-		let tx_root = ethers_h256_to_h256(block.transactions_root);
+		let tx_root = block.transactions_root.into();
 
 		let receipts = self.get_receipts_by_transactions(&txs)?;
-		let receipt_root = ethers_h256_to_h256(block.receipts_root);
+		let receipt_root = block.receipts_root.into();
 
 		self.transactions.insert(tx_root, txs);
 		self.receipts.insert(receipt_root, receipts);
@@ -83,7 +83,7 @@ impl Client {
 
 	/// Gets a transaction receipt by transaction hash
 	fn get_transaction_receipt(&self, transaction_hash: Hash) -> Result<Receipt> {
-		let transaction_hash = h256_to_ethers(transaction_hash);
+		let transaction_hash: ethers_core::types::H256 = transaction_hash.into();
 		let receipt = self.rt.block_on(self.provider.get_transaction_receipt(transaction_hash))?;
 		let receipt = receipt.ok_or(eyre::eyre!("did not find the receipt"))?;
 		Ok(receipt)

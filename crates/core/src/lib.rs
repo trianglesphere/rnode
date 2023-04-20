@@ -1,3 +1,6 @@
+#![feature(const_trait_impl)]
+#![feature(const_convert)]
+
 pub mod id;
 pub mod types;
 
