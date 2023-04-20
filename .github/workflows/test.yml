@@ -17,9 +17,7 @@ jobs:
           toolchain: nightly
           override: true
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: check
+      - run: cargo check --all
 
   test:
     runs-on: ubuntu-latest
@@ -31,10 +29,8 @@ jobs:
           toolchain: nightly
           override: true
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: test
-          args: --all
+      - run: cargo test --all
+
   build:
     runs-on: ubuntu-latest
     steps:
@@ -45,10 +41,7 @@ jobs:
           toolchain: nightly
           override: true
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: build
-          args: --all
+      - run: cargo build --all
 
   fmt:
     runs-on: ubuntu-latest
@@ -61,10 +54,7 @@ jobs:
           override: true
           components: rustfmt
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: fmt
-          args: --all -- --check
+      - run: cargo fmt --all -- --check
 
   clippy:
     runs-on: ubuntu-latest
@@ -77,7 +67,4 @@ jobs:
           override: true
           components: clippy
       - uses: Swatinem/rust-cache@v2
-      - uses: actions-rs/cargo@v1
-        with:
-          command: clippy
-          args: --all -- -D warnings
+      - run: cargo clippy --all -- -D warnings
