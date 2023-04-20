@@ -8,3 +8,4 @@ core = {path = "../core"}
 ethers-core = "1.0.2"
 eyre = "0.6.8"
 flate2 = "1.0.25"
+hex-literal = "0.4.1"

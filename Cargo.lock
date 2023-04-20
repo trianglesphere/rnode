@@ -260,6 +260,7 @@ name = "core"
 version = "0.1.0"
 dependencies = [
  "ethers-core 1.0.2",
+ "hex-literal 0.4.1",
  "reth-primitives",
 ]
 
@@ -449,6 +450,7 @@ dependencies = [
  "ethers-core 1.0.2",
  "eyre",
  "flate2",
+ "hex-literal 0.4.1",
 ]
 
 [[package]]
@@ -1402,6 +1404,7 @@ version = "0.1.0"
 dependencies = [
  "core",
  "hex",
+ "hex-literal 0.4.1",
  "reth-primitives",
  "reth-rlp",
 ]
@@ -1954,6 +1957,7 @@ dependencies = [
  "derivation",
  "dotenv",
  "eyre",
+ "hex-literal 0.4.1",
  "mpt",
 ]
 

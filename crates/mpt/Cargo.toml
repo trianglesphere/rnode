@@ -10,4 +10,4 @@ core = {path = "../core"}
 reth-rlp = { git = "https://github.com/paradigmxyz/reth" }
 reth-primitives = { git = "https://github.com/paradigmxyz/reth" }
 hex = "0.4.3"
-
+hex-literal = "0.4.1"
