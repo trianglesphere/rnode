@@ -19,4 +19,6 @@ jobs:
           override: true
           components: clippy, rustfmt
       - uses: Swatinem/rust-cache@v2
+        with:
+          shared-key: "rust-cache"
       - run: ${{ inputs.command }}
