@@ -1,4 +1,6 @@
 use core::types::ChannelID;
+use eyre::Result;
+use std::io::Read;
 
 #[derive(Debug)]
 pub struct Frame {
@@ -14,35 +16,51 @@ impl Frame {
 	}
 }
 
-// TODO: Clean this up
 pub fn parse_frames(tx_data: &[u8]) -> Vec<Frame> {
-	if tx_data.is_empty() || tx_data[0] != 0 {
+	let mut r = tx_data;
+	// Check the version byte
+	let mut version_buf = [1];
+	if r.read_exact(&mut version_buf).is_err() || version_buf[0] != 0 {
 		return Vec::default();
 	}
-	let mut tx_data = &tx_data[1..];
-
+	// Iterate through the rest of the frames. No frames are returned if any error is encountered.
 	let mut out = Vec::new();
 	loop {
-		let id = ChannelID::from_slice(&tx_data[0..16]);
-		let number = u16::from_be_bytes(tx_data[16..18].try_into().unwrap());
-		let len = u32::from_be_bytes(tx_data[18..22].try_into().unwrap());
-		let ulen = len as usize;
-		let data = tx_data[22..22 + ulen].to_vec();
-		let is_last = tx_data[22 + ulen];
-		let is_last = if is_last == 0 {
-			false
-		} else if is_last == 1 {
-			true
-		} else {
-			return Vec::default();
-		};
-
-		tx_data = &tx_data[22 + ulen + 1..];
-
-		out.push(Frame { id, number, data, is_last });
-
-		if tx_data.is_empty() {
+		if r.is_empty() {
 			return out;
 		}
+		match parse_frame(&mut r) {
+			Ok(f) => out.push(f),
+			Err(_) => return Vec::default(),
+		}
 	}
+}
+
+fn parse_frame(r: &mut impl Read) -> Result<Frame> {
+	let mut id_buf = [0u8; 16];
+	let mut number_buf = [0u8; 2];
+	let mut len_buf = [0u8; 4];
+	let mut is_last_buf = [0u8; 1];
+
+	r.read_exact(&mut id_buf)?;
+	r.read_exact(&mut number_buf)?;
+	r.read_exact(&mut len_buf)?;
+
+	let len = u32::from_be_bytes(len_buf);
+	let mut data = vec![0u8; len as usize];
+	r.read_exact(&mut data)?;
+	r.read_exact(&mut is_last_buf)?;
+
+	let is_last = if is_last_buf[0] == 0 {
+		false
+	} else if is_last_buf[0] == 1 {
+		true
+	} else {
+		return Err(eyre::eyre!("is_last byte is invalid"));
+	};
+
+	let id = ChannelID::new(id_buf);
+	let number = u16::from_be_bytes(number_buf);
+
+	Ok(Frame { id, number, data, is_last })
 }

@@ -2,8 +2,8 @@
 pub struct ChannelID([u8; 16]);
 
 impl ChannelID {
-	pub fn from_slice(data: &[u8]) -> Self {
-		Self(data.try_into().unwrap())
+	pub fn new(id: [u8; 16]) -> Self {
+		Self(id)
 	}
 }
 

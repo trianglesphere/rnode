@@ -13,7 +13,7 @@ with no multi-threaded or networked parts inside the core of derivation.
     - [x] Inbox Address check
     - [x] Filter from authorized batcher
     - [x] Parse frames (basic)
-    - [ ] Parse frames (resilient to malformed data)
+    - [x] Parse frames (resilient to malformed data)
     - [x] Channel from frames
     - [x] Decode batches from channel
     - [ ] RLP bytes limit on channel
