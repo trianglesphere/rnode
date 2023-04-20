@@ -17,9 +17,9 @@ pub mod prelude {
 	pub use crate::id::L1BlockRef;
 	pub use crate::id::L2BlockRef;
 	pub use crate::types::Address;
+	pub use crate::types::ChannelID;
+	pub use crate::types::Hash;
 	pub use crate::types::Receipt;
 	pub use crate::types::Transaction;
-	pub use crate::types::H128;
-	pub use crate::types::H256;
 	pub use crate::L2BlockCandidate; // TODO: remove
 }

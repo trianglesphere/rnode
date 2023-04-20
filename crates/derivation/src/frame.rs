@@ -1,8 +1,8 @@
-use core::types::H128;
+use core::types::ChannelID;
 
 #[derive(Debug)]
 pub struct Frame {
-	pub id: H128,
+	pub id: ChannelID,
 	pub number: u16,
 	pub data: Vec<u8>,
 	pub is_last: bool,
@@ -23,7 +23,7 @@ pub fn parse_frames(tx_data: &[u8]) -> Vec<Frame> {
 
 	let mut out = Vec::new();
 	loop {
-		let id = H128::from_slice(&tx_data[0..16]);
+		let id = ChannelID::from_slice(&tx_data[0..16]);
 		let number = u16::from_be_bytes(tx_data[16..18].try_into().unwrap());
 		let len = u32::from_be_bytes(tx_data[18..22].try_into().unwrap());
 		let ulen = len as usize;

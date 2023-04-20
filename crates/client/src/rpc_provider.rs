@@ -15,14 +15,14 @@ pub struct Client {
 	/// The client runtime
 	pub rt: Runtime,
 	/// Store of receipts from Receipt Root to Receipts
-	pub receipts: HashMap<H256, Vec<Receipt>>,
+	pub receipts: HashMap<Hash, Vec<Receipt>>,
 	/// Store of transactions from Transaction Root to Transactions
-	pub transactions: HashMap<H256, Vec<Transaction>>,
+	pub transactions: HashMap<Hash, Vec<Transaction>>,
 }
 
 impl Provider for Client {
 	/// Gets a block header by block hash
-	fn get_header(&mut self, hash: H256) -> Result<Header> {
+	fn get_header(&mut self, hash: Hash) -> Result<Header> {
 		let hash = h256_to_ethers(hash);
 		let block = self.rt.block_on(self.provider.get_block_with_txs(hash))?;
 		let block = block.ok_or(eyre::eyre!("did not find the block"))?;
@@ -41,7 +41,7 @@ impl Provider for Client {
 	}
 
 	/// Get receipts by the recipt root
-	fn get_receipts_by_root(&self, root: H256) -> Result<Vec<Receipt>> {
+	fn get_receipts_by_root(&self, root: Hash) -> Result<Vec<Receipt>> {
 		self.receipts
 			.get(&root)
 			.ok_or(eyre::eyre!("missing receipts for given root in internal store"))
@@ -49,7 +49,7 @@ impl Provider for Client {
 	}
 
 	/// Get transactions by the transaction root
-	fn get_transactions_by_root(&self, root: H256) -> Result<Vec<Transaction>> {
+	fn get_transactions_by_root(&self, root: Hash) -> Result<Vec<Transaction>> {
 		self.transactions
 			.get(&root)
 			.ok_or(eyre::eyre!("missing transactions for given root in internal store"))
@@ -82,7 +82,7 @@ impl Client {
 	}
 
 	/// Gets a transaction receipt by transaction hash
-	fn get_transaction_receipt(&self, transaction_hash: H256) -> Result<Receipt> {
+	fn get_transaction_receipt(&self, transaction_hash: Hash) -> Result<Receipt> {
 		let transaction_hash = h256_to_ethers(transaction_hash);
 		let receipt = self.rt.block_on(self.provider.get_transaction_receipt(transaction_hash))?;
 		let receipt = receipt.ok_or(eyre::eyre!("did not find the receipt"))?;
