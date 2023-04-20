@@ -1,5 +1,5 @@
-use core::types::Hash;
-use reth_primitives::{keccak256, Bytes};
+use core::types::{keccak, Hash};
+use reth_primitives::Bytes;
 use reth_rlp::Encodable;
 use std::{collections::HashMap, fmt::Debug, iter::zip};
 
@@ -33,7 +33,7 @@ pub fn mpt_hash(x: &[u8], db: &mut HashMap<Hash, Vec<u8>>) -> RLPEncodeableWrapp
 	if x.len() < 32 {
 		RLPEncodeableWrapper::Raw(x.to_vec())
 	} else {
-		let h = keccak256(x);
+		let h = keccak(x);
 		db.insert(h, x.to_vec());
 		RLPEncodeableWrapper::Bytes(h.to_vec())
 	}

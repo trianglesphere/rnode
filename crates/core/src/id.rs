@@ -1,6 +1,6 @@
 use crate::types::*;
 
-#[derive(Debug, Clone, Copy, Default, Eq, PartialEq)]
+#[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
 pub struct BlockID {
 	pub hash: Hash,
 	pub number: u64,
@@ -39,7 +39,7 @@ pub struct L2BlockRef {
 impl From<Header> for BlockID {
 	fn from(h: Header) -> Self {
 		Self {
-			hash: h.hash_slow(),
+			hash: h.hash_slow().into(),
 			number: h.number,
 		}
 	}
@@ -57,9 +57,9 @@ impl From<L1BlockRef> for BlockID {
 impl From<Header> for L1BlockRef {
 	fn from(h: Header) -> Self {
 		Self {
-			hash: h.hash_slow(),
+			hash: h.hash_slow().into(),
 			number: h.number,
-			parent_hash: h.parent_hash,
+			parent_hash: h.parent_hash.into(),
 			time: h.timestamp,
 		}
 	}

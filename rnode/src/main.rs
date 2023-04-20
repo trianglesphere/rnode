@@ -1,9 +1,8 @@
 use dotenv::dotenv;
 use eyre::Result;
-use std::str::FromStr;
 
 use client::prelude::*;
-use core::types::Hash;
+use core::{hash_literal, types::Hash};
 use derivation::derivation::Derivation;
 
 fn main() -> Result<()> {
@@ -12,11 +11,11 @@ fn main() -> Result<()> {
 
 	let provider = std::env::var("RPC")?;
 	let mut provider = Client::new(&provider)?;
-	let hash = Hash::from_str("0x20ffc57ae0c607d4b612662251738b01c44f8a9a42a1da89a881a56a5fad426e")?;
+	let hash = hash_literal!("20ffc57ae0c607d4b612662251738b01c44f8a9a42a1da89a881a56a5fad426e");
 
 	let header = provider.get_header(hash)?;
-	let transactions = provider.get_transactions_by_root(header.transactions_root)?;
-	let receipts = provider.get_receipts_by_root(header.receipts_root)?;
+	let transactions = provider.get_transactions_by_root(header.transactions_root.into())?;
+	let receipts = provider.get_receipts_by_root(header.receipts_root.into())?;
 
 	let mut derivation = Derivation::default();
 	derivation.load_l1_data(header.into(), transactions, receipts);

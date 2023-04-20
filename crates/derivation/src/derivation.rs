@@ -6,11 +6,10 @@ use super::read_adapter::ReadAdpater;
 
 use core::prelude::*;
 
-use core::types::{Address, Receipt, Transaction};
+use core::types::{Receipt, Transaction};
 use ethers_core::utils::rlp::{decode, Rlp};
 use flate2::read::ZlibDecoder;
 use std::io::Read;
-use std::str::FromStr;
 
 fn decompress(r: impl Read) -> Vec<u8> {
 	let mut decomp = ZlibDecoder::new(r);
@@ -54,7 +53,7 @@ pub struct Derivation {
 impl Derivation {
 	pub fn load_l1_data(&mut self, l1_block: L1BlockRef, transactions: Vec<Transaction>, _receipts: Vec<Receipt>) {
 		// TODO: Create system config from the receipts
-		let batcher_address = Address::from_str("0x7431310e026B69BFC676C0013E12A1A11411EEc9").unwrap();
+		let batcher_address = core::address_literal!("7431310e026B69BFC676C0013E12A1A11411EEc9");
 
 		let batches = transactions
 			.into_iter()
