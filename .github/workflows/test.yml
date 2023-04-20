@@ -8,63 +8,26 @@ on:
 
 jobs:
   check:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo check --all
+    uses: ./.github/workflows/cargo.yml
+    with:
+      command: cargo check --all
 
   test:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo test --all
+    uses: ./.github/workflows/cargo.yml
+    with:
+      command: cargo test --all
 
   build:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo build --all
+    uses: ./.github/workflows/cargo.yml
+    with:
+      command: cargo build --all
 
   fmt:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-          components: rustfmt
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo fmt --all -- --check
+    uses: ./.github/workflows/cargo.yml
+    with:
+      command: cargo fmt --all -- --check
 
   clippy:
-    runs-on: ubuntu-latest
-    steps:
-      - uses: actions/checkout@v3
-      - uses: actions-rs/toolchain@v1
-        with:
-          profile: minimal
-          toolchain: nightly
-          override: true
-          components: clippy
-      - uses: Swatinem/rust-cache@v2
-      - run: cargo clippy --all -- -D warnings
+    uses: ./.github/workflows/cargo.yml
+    with:
+      command: cargo clippy --all -- -D warnings
