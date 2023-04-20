@@ -1,3 +1,4 @@
+pub mod chain_config;
 pub mod id;
 pub mod types;
 
