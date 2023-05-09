@@ -1,6 +1,12 @@
 use core::types::ChannelID;
-use eyre::Result;
-use std::io::Read;
+use nom::{
+	branch::alt,
+	bytes::complete::{tag, take},
+	combinator::{map, map_res},
+	multi::many0,
+	number::complete::{be_u16, be_u32},
+	IResult,
+};
 
 #[derive(Debug)]
 pub struct Frame {
@@ -17,50 +23,54 @@ impl Frame {
 }
 
 pub fn parse_frames(tx_data: &[u8]) -> Vec<Frame> {
-	let mut r = tx_data;
-	// Check the version byte
-	let mut version_buf = [1];
-	if r.read_exact(&mut version_buf).is_err() || version_buf[0] != 0 {
-		return Vec::default();
-	}
-	// Iterate through the rest of the frames. No frames are returned if any error is encountered.
-	let mut out = Vec::new();
-	loop {
-		if r.is_empty() {
-			return out;
-		}
-		match parse_frame(&mut r) {
-			Ok(f) => out.push(f),
-			Err(_) => return Vec::default(),
-		}
-	}
+	parse_frames_nom(tx_data).map(|(_, frames)| frames).unwrap_or_default()
 }
 
-fn parse_frame(r: &mut impl Read) -> Result<Frame> {
-	let mut id_buf = [0u8; 16];
-	let mut number_buf = [0u8; 2];
-	let mut len_buf = [0u8; 4];
-	let mut is_last_buf = [0u8; 1];
+fn parse_frames_nom(i: &[u8]) -> IResult<&[u8], Vec<Frame>> {
+	let (i, _) = tag([0])(i)?;
+	let (i, frames) = many0(parse_frame)(i)?;
+	Ok((i, frames))
+}
 
-	r.read_exact(&mut id_buf)?;
-	r.read_exact(&mut number_buf)?;
-	r.read_exact(&mut len_buf)?;
+fn parse_frame(i: &[u8]) -> IResult<&[u8], Frame> {
+	let (i, id) = map_res(take(4usize), ChannelID::try_from)(i)?;
+	let (i, number) = be_u16(i)?;
+	let (i, data_len) = be_u32(i)?;
+	// TODO: Validate data_len against MAX_DATA_LEN
+	let (i, data) = take(data_len as usize)(i)?;
+	let (i, is_last) = parse_bool(i)?;
+	Ok((
+		i,
+		Frame {
+			id,
+			number,
+			data: data.to_vec(),
+			is_last,
+		},
+	))
+}
 
-	let len = u32::from_be_bytes(len_buf);
-	let mut data = vec![0u8; len as usize];
-	r.read_exact(&mut data)?;
-	r.read_exact(&mut is_last_buf)?;
+fn parse_bool(i: &[u8]) -> IResult<&[u8], bool> {
+	alt((map(tag([0]), |_| false), map(tag([1]), |_| true)))(i)
+}
 
-	let is_last = if is_last_buf[0] == 0 {
-		false
-	} else if is_last_buf[0] == 1 {
-		true
-	} else {
-		return Err(eyre::eyre!("is_last byte is invalid"));
-	};
+#[cfg(test)]
+mod tests {
+	use super::*;
 
-	let id = ChannelID::new(id_buf);
-	let number = u16::from_be_bytes(number_buf);
+	#[test]
+	fn test_parse_bool_true() {
+		assert_eq!(parse_bool(&[1]), Ok((&[][..], true)));
+	}
 
-	Ok(Frame { id, number, data, is_last })
+	#[test]
+	fn test_parse_bool_false() {
+		assert_eq!(parse_bool(&[0]), Ok((&[][..], false)));
+	}
+
+	#[test]
+	fn test_parse_bool_invalid() {
+		assert!(parse_bool(&[]).is_err());
+		assert!(parse_bool(&[2]).is_err());
+	}
 }
