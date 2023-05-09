@@ -7,6 +7,13 @@ impl ChannelID {
 	}
 }
 
+impl TryFrom<&[u8]> for ChannelID {
+	type Error = std::array::TryFromSliceError;
+	fn try_from(value: &[u8]) -> Result<Self, Self::Error> {
+		Ok(Self::new(value.try_into()?))
+	}
+}
+
 #[derive(Debug, Clone, Copy, Default, Eq, PartialEq, Hash)]
 pub struct Address([u8; 20]);
 
